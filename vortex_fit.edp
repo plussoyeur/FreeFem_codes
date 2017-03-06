@@ -1,0 +1,45 @@
+// Program to fit vortex from a pre-computed simulation
+load "Element_P4";
+load "iovtk";
+load "ff-Ipopt";
+load "gsl";
+load "pipe";
+load "isoline";
+load "BEC";
+
+ofstream fout("output.echo",append);
+
+//===============================================================
+// load functions and mesh
+//===============================================================
+
+include "BEC_2D_Macros.idp";
+real ITER0=0.;
+
+mesh Th = readmesh("BEC_2D-Classical-N-140000-Omega-1000_iter_00301.msh");
+
+
+plot(Th, wait=1);
+
+fespace Vh (Th,P1);
+fespace Vh4(Th,P4);
+fespace Vh2(Th,[P1,P1]);
+fespace Ph (Th,P0);
+
+Vh<complex> u, uconj;
+Vh          ur, ui, umod, argu,u0; // real, imag parts and mod of the solution
+real        Normu; // norm of the solution \int(u^2)
+
+restartloadint(u,"/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D-Classical-N-140000-Omega-1000_iter_00301","/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D-Classical-N-140000-Omega-1000_iter_00301",ITER0);
+
+BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
+
+plot(umod,wait=1);
+
+//===============================================================
+// Fit
+//===============================================================
+Ph r;
+
+int[int] lm=findalllocalmin(Th,umod[],r[],convex=0,eps=0);
+plot(r, u, fill=1, wait=1);
