@@ -36,6 +36,10 @@ BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
 
 plot(umod,wait=1);
 
+Ph dist = sqrt(x^2-y^2);
+cout << "Distance max = " << dist[].max << endl;
+
+
 //===============================================================
 // Fit
 //===============================================================
@@ -43,3 +47,92 @@ Ph r;
 
 int[int] lm=findalllocalmin(Th,umod[],r[],convex=0,eps=0);
 plot(r, u, fill=1, wait=1);
+
+// Loop over each minimum
+for(int j = 0; j < lm.n; j++){
+  cout << "Iter : " << j << "sur " << lm.n << endl;
+  
+  int val = lm(j); // jth value in tab lm
+  mesh Thj = trunc(Th, floor(r)==val); // trunc mesh by taking the triangles where r matched the desired value
+  plot(Thj);
+  fespace Vhj(Thj,P1); //P1 espace for this sub-mesh
+  fespace Phj(Thj,P0); //P0 espace for this sub-mesh
+  Vhj uj = umod; // Restrict solution of GPE to this sub-mesh
+  plot(uj, wait = 1);
+  
+  // Useful starting parameters
+  int mini = uj[].imin;
+  real xjG = Thj(mini).x;
+  real yjG = Thj(mini).y;
+  real ampl = abs(uj[].max - uj[].min);
+
+  Phj r2 = sqrt((x-xjG)^2+(y-yjG)^2);
+  real sig = r2[].imax;
+
+  // Parameters
+  real[int] a(5);
+  real[int] alpha(5);
+
+  alpha[0] = ampl;
+  alpha[1] = xjG;
+  alpha[2] = sig;
+  alpha[3] = yjG;
+  alpha[4] = sig;
+
+  // Construct functionnal
+  func real J(real[int] & alpha){
+    for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
+    func gaf = a[0]*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj ga = gaf;
+    real s = int2d(Thj)(.5*abs(ga-uj)^2);
+    return s;
+  }
+
+  // Construct functionnal derivative
+  func real[int] DJ(real[int] & alpha){
+    for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
+    func gaf = a[0]*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj ga = gaf;
+    func dgaf0 = exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj dga0 = dgaf0;
+    func dgaf1 = a[0]*(x-a[1])/a[2]^2*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj  dga1 = dgaf1;
+    func dgaf2 = a[0]*(x-a[1])^2/a[2]^3*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj dga2 = dgaf2;
+    func dgaf3 = a[0]*(y-a[3])/a[4]^2*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj  dga3 = dgaf3;
+    func dgaf4 = a[0]*(y-a[3])^2/a[4]^3*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+    Vhj dga4 = dgaf2;
+
+    real[int] res(5);
+    res(0) = int2d(Thj)( (ga-uj)^2*dga0 );
+    res(1) = int2d(Thj)( (ga-uj)^2*dga1 );
+    res(2) = int2d(Thj)( (ga-uj)^2*dga2 );
+    res(3) = int2d(Thj)( (ga-uj)^2*dga3 );
+    res(4) = int2d(Thj)( (ga-uj)^2*dga4 );
+
+    return res;
+  }
+
+  // Fit using BFGS
+  cout << "********************************" << endl;
+  cout << "Start BFGS" << endl;
+  cout << "********************************" << endl;
+  cout << endl;
+  cout << endl;
+  cout << alpha << endl;
+  cout << endl;
+  cout << endl;
+  // If not close to the border
+  real rG = sqrt(xjG^2+yjG^2);
+  cout << "Iter : " << j << "   centre   " << rG << endl;
+  if(rG < 6) BFGS(J,DJ,alpha,eps=1.e-6,nbiter=15,nbiterline=20);
+  cout << endl;
+  cout << endl;
+  cout << alpha << endl;
+  cout << "********************************" << endl;
+  cout << "End BFGS" << endl;
+  cout << "********************************" << endl;
+  
+
+ }
