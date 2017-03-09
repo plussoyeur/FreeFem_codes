@@ -1,0 +1,72 @@
+mesh Th = square(100,100,[x,y]);
+fespace Vh(Th,P1);
+fespace Ph(Th,P0);
+
+real Gam = 0.01;
+func g = 5-5*(Gam*Gam)/( Gam*Gam + (x-.5)^2 + (y-.5)^2 );
+Vh uj = g;
+
+plot(uj,wait=1);
+
+int mini = uj[].imin; 
+real xG = Th(mini).x;
+real yG = Th(mini).y;
+Ph r2 = sqrt((x-xG)^2+(y-yG)^2);
+real sig = r2[].max;
+
+
+//********************************************************************************
+// LORENTZIAN FIT
+real[int] beta(5);
+real[int] b(5);
+beta[0] = uj[].max-uj[].min;
+beta[1] = sig/5;
+beta[2] = xG;
+beta[3] = yG;
+beta[4] = uj[].max;
+
+// Lorentzian functionnal
+func real Jlorent(real[int] & beta){
+  for(int i = 0; i < beta.n; i++) b[i] = beta[i];
+  func gaf = b(4) - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
+  Vh ga = gaf;
+  real s = int2d(Th)( .5*abs(ga-uj)^2 );
+  return s;
+}
+
+// Lorentzian functionnal derivative
+func real[int] DJlorent(real[int] & beta){
+  for(int i = 0; i < beta.n; i++) b[i] = beta[i];
+  func gaf = b[4] - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
+  Vh ga = gaf;
+  func dgaf0 = -b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  ); ;
+  Vh dga0 = dgaf0;
+  func dgaf1 = -2*b[0]*b[1]*( (x-b[2])^2 + (y-b[3])^2 )/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  );;
+  Vh dga1 = dgaf1;
+  func dgaf2 = -2*b[0]*b[1]^2*(x-b[2])/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
+  Vh dga2 = dgaf2;
+  func dgaf3 = -2*b[0]*b[1]^2*(y-b[3])/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
+  Vh dga3 = dgaf3;
+  func dgaf4 = 1;
+  Vh dga4 = dgaf4;
+
+  real[int] res(5);
+  res(0) = int2d(Th)( (ga-uj)*dga0 );
+  res(1) = int2d(Th)( (ga-uj)*dga1 );
+  res(2) = int2d(Th)( (ga-uj)*dga2 );
+  res(3) = int2d(Th)( (ga-uj)*dga3 );
+  res(4) = int2d(Th)( (ga-uj)*dga4 );
+
+  return res;
+}
+
+cout << "Beta init : " << beta << endl;
+
+BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
+
+func gaf = b[4] - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
+Vh ga = gaf;
+
+cout << "Final beta : " << beta << endl;
+plot(ga,wait=1,cmm="ga");
+plot(ga,uj,wait=1,cmm="ga et uj");
