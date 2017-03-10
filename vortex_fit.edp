@@ -46,16 +46,19 @@ cout << "Distance max = " << dist[].max << endl;
 Ph r;
 
 //int[int] lm=findalllocalmin(Th,umod[],r[],convex=0,eps=0);
-int[int] lm=findalllocalmin(Th,umod[],r[]);
-plot(r, u, fill=1, wait=1);
+int[int] lm=findalllocalmin(Th,umod[],r[]); //lm stores vertex ind where min is reached; r attributes vertex to its jth minimum
+plot(r, fill=1, wait=1, cmm = "r");
 
 cout << "lm : "<< lm << endl;
+//cout << "r : " << r[] << endl;
+
 // Loop over each minimum
 for(int j = 0; j < lm.n; j++){
-  cout << "Iter : " << j << "sur " << lm.n << endl;
+  cout << "Iter : " << j << " sur " << lm.n << endl;
   
-  int val = lm(j); // jth value in tab lm
-  mesh Thj = trunc(Th, floor(r)==val); // trunc mesh by taking the triangles where r matched the desired value
+  int globindmin = lm(j); // jth value in tab lm
+  real valmin = umod[][globindmin];
+  mesh Thj = trunc(Th, floor(r)==j); // trunc mesh by taking the triangles where r matched the desired value
   plot(Thj);
   fespace Vhj(Thj,P1); //P1 espace for this sub-mesh
   fespace Phj(Thj,P0); //P0 espace for this sub-mesh
@@ -64,15 +67,14 @@ for(int j = 0; j < lm.n; j++){
   plot(uj, wait = 1, cmm=title);
   
   // Useful starting parameters
-  int mini = uj[].imin;
-  real xjG = Thj(mini).x;
-  real yjG = Thj(mini).y;
-  real ampl = uj[].min - uj[].max;
+  int locindmin = uj[].imin;
+  real xjG = Thj(locindmin).x;
+  real yjG = Thj(locindmin).y;
+  real ampl = uj[].max - uj[].min;
   real H = uj[].max;
 
   Phj r2 = sqrt((x-xjG)^2+(y-yjG)^2);
   real sig = r2[].max;
-
 
   
   //********************************************************************************
@@ -82,7 +84,7 @@ for(int j = 0; j < lm.n; j++){
   real[int] a(6);
   real[int] alpha(6);
 
-  alpha[0] = ampl;
+  alpha[0] = -ampl;
   alpha[1] = xjG;
   alpha[2] = sig;
   alpha[3] = yjG;
@@ -134,7 +136,7 @@ for(int j = 0; j < lm.n; j++){
   // LORENTZIAN FIT 1
   real[int] beta(5);
   real[int] b(5);
-  beta[0] = -ampl;
+  beta[0] = ampl;
   beta[1] = sig/5;
   beta[2] = xjG;
   beta[3] = yjG;
@@ -187,7 +189,7 @@ for(int j = 0; j < lm.n; j++){
   // LORENTZIAN FIT 2
   real[int] zeta(6);
   real[int] zz(6);
-  zeta[0] = -ampl;
+  zeta[0] = ampl;
   zeta[1] = xjG;
   zeta[2] = 1;
   zeta[3] = yjG;
@@ -247,8 +249,8 @@ for(int j = 0; j < lm.n; j++){
   real rG = sqrt(xjG^2+yjG^2);
   cout << "Iter : " << j << "   centre   " << rG << endl;
   //cout << "Alpha init : " << alpha << endl; // Gauss
-  //cout << "Beta init : " << beta << endl; // Lorentz
-  cout << "Zeta init : " << zeta << endl; // Lorentz 2
+  cout << "Beta init : " << beta << endl; // Lorentz
+  //cout << "Zeta init : " << zeta << endl; // Lorentz 2
   cout << endl;
   cout << endl;
   // If not close to the border
@@ -259,31 +261,31 @@ for(int j = 0; j < lm.n; j++){
       //func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
       //Vhj gai = gafi;
 
-      // //Lorentz 
-      //func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      //Vhj gai = gafi;
-
       //Lorentz 
-      func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
       Vhj gai = gafi;
+
+      // //Lorentz 2
+      // func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // Vhj gai = gafi;
       
       plot(gai,wait=1,cmm = "Initialisation");
       //BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
-      //BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
-      BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian2
+      BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
+      //BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian2
 
 
       // // Res gauss
       //func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
       //Vhj ga = gaf;
 
-      // // Res Lorentz 
-      //func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      //Vhj ga = gaf;
-
-      // // Res Lorentz 2
-      func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // Res Lorentz 
+      func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
       Vhj ga = gaf;
+
+      // // // Res Lorentz 2
+      // func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // Vhj ga = gaf;
       
       string title2 = "Iter : " + j + "   uj and ga ";
       plot(uj,wait=1, cmm = "uj");
@@ -293,8 +295,8 @@ for(int j = 0; j < lm.n; j++){
       cout << endl;
       cout << "****************************" << endl;
       //cout << "Alpha after BFGS : " << alpha << endl; // Gauss
-      //cout << "Beta after BFGS : " << beta << endl; // Lorentz
-      cout << "Zeta after BFGS : " << zeta << endl; // Lorentz 2
+      cout << "Beta after BFGS : " << beta << endl; // Lorentz
+      //cout << "Zeta after BFGS : " << zeta << endl; // Lorentz 2
     }
   }
   cout << endl;
