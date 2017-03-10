@@ -192,7 +192,7 @@ Ph r;
 int[int] lm=findalllocalmin(Th,umod[],r[]);
 
 // Plot region matching basins of attraction
-plot(r, fill=1, wait=1, cmm="Basnis of attraction");
+plot(r, fill=1, wait=1, cmm="Basins  of attraction");
 
 // cout << "lm : " << lm << endl;
 // cout << "r : " << r << endl;

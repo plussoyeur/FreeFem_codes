@@ -19,25 +19,28 @@ real ITER0=0.;
 mesh Th = readmesh("BEC_2D-Classical-N-140000-Omega-1000_iter_00301.msh");
 
 
-plot(Th, wait=1);
+plot(Th, wait=1, cmm="Initial mesh");
 
 fespace Vh (Th,P1);
-fespace Vh4(Th,P4);
-fespace Vh2(Th,[P1,P1]);
 fespace Ph (Th,P0);
 
 Vh<complex> u, uconj;
 Vh          ur, ui, umod, argu,u0; // real, imag parts and mod of the solution
 real        Normu; // norm of the solution \int(u^2)
 
+// Load solution
 restartloadint(u,"/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D-Classical-N-140000-Omega-1000_iter_00301","/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D-Classical-N-140000-Omega-1000_iter_00301",ITER0);
 
+// Normalize solution (should already be ok)
 BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
 
-plot(umod,wait=1);
+// plot initial solution
+plot(umod, wait=1, cmm="Solution initial BEC");
 
+// Compute distance from center
 Ph dist = sqrt(x^2+y^2);
-cout << "Distance max = " << dist[].max << endl;
+real distmax = dist[].max;
+cout << "BEC radius : " << distmax << endl;
 
 
 //===============================================================
@@ -45,36 +48,62 @@ cout << "Distance max = " << dist[].max << endl;
 //===============================================================
 Ph r;
 
-//int[int] lm=findalllocalmin(Th,umod[],r[],convex=0,eps=0);
-int[int] lm=findalllocalmin(Th,umod[],r[]); //lm stores vertex ind where min is reached; r attributes vertex to its jth minimum
-plot(r, fill=1, wait=1, cmm = "r");
+//**************************************************
+// Call findalllocalmin in isoline.cpp to find basins of attraction
+//**************************************************
+// lm stores vertex ind where min is reached;
+// r attributes vertex to its jth minimum
+int[int] lm=findalllocalmin(Th,umod[],r[]);
 
-cout << "lm : "<< lm << endl;
+// Plot region matching basins of attraction
+plot(r, fill=1, wait=1,  cmm="Basins of attraction");
+
+//cout << "lm : "<< lm << endl;
 //cout << "r : " << r[] << endl;
 
-// Loop over each minimum
+
+//**************************************************
+// Loop over each basin of attraction
+//**************************************************
 for(int j = 0; j < lm.n; j++){
-  cout << "Iter : " << j << " sur " << lm.n << endl;
+  cout << "Nous sommes a l'iteration : " << j << " / " << lm.n << endl;
   
-  int globindmin = lm(j); // jth value in tab lm
-  real valmin = umod[][globindmin];
-  mesh Thj = trunc(Th, floor(r)==j); // trunc mesh by taking the triangles where r matched the desired value
-  plot(Thj);
-  fespace Vhj(Thj,P1); //P1 espace for this sub-mesh
-  fespace Phj(Thj,P0); //P0 espace for this sub-mesh
-  Vhj uj = umod; // Restrict solution of GPE to this sub-mesh
-  string title = "current value : " + j;
-  plot(uj, wait = 1, cmm=title);
+  // Trunc mesh -> reduce to one basin of attraction
+  mesh Thj = trunc(Th, floor(r)==j); // take the jth minimum
+
+  // Plot truncated mesh
+  string titletruncmesh = "Truncated mesh for " + j + "th minimum";
+  plot(Thj, wait=1, cmm = titletruncmesh);
   
-  // Useful starting parameters
-  int locindmin = uj[].imin;
-  real xjG = Thj(locindmin).x;
-  real yjG = Thj(locindmin).y;
+  // Declare Pi sub-espace related to the truncated mesh
+  fespace Vhj(Thj,P1);
+  fespace Phj(Thj,P0);
+
+  // Restrict GPE solution to the truncated mesh
+  Vhj uj = umod;
+
+  // Plot the restricted solution on the truncated mesh
+  string titlerestrsolution = "Plot of u" + j;
+  plot(uj, wait=1, cmm = titlerestrsolution);
+
+  //********************************************************************************
+  // Compute useful parameters from uj to find starting parameters for the fit
+  int globalindmin = lm[j]; //ind of min on the global mesh
+  real xjG = Th(globalindmin).x; // x coord for the min
+  real yjG = Th(globalindmin).y; // y coord for the min
+  real rG = sqrt(xjG^2+yjG^2); //dist from center
   real ampl = uj[].max - uj[].min;
   real H = uj[].max;
 
-  Phj r2 = sqrt((x-xjG)^2+(y-yjG)^2);
-  real sig = r2[].max;
+  Phj r2 = sqrt( (x-xjG)^2 + (y-yjG)^2 ); // distance from vortex center
+  //plot(r2, wait=1, cmm = "Dist from center of this vortex");
+  real sig = r2[].max; // radius of vortex
+  Phj fx = x;
+  Phj fy = y;
+  real sigx = fx[].max;
+  real sigy = fy[].max;
+  
+  //********************************************************************************
 
   
   //********************************************************************************
@@ -191,9 +220,9 @@ for(int j = 0; j < lm.n; j++){
   real[int] zz(6);
   zeta[0] = ampl;
   zeta[1] = xjG;
-  zeta[2] = 1;
+  zeta[2] = sigx*.3;
   zeta[3] = yjG;
-  zeta[4] = 1;
+  zeta[4] = sigy*.3;
   zeta[5] = H;
   
   // Lorentzian 2 functionnal 
@@ -238,65 +267,75 @@ for(int j = 0; j < lm.n; j++){
 
   //********************************************************************************
   
-  
+  //********************************************************************************
   // Fit using BFGS
   cout << "********************************" << endl;
   cout << "Start BFGS" << endl;
   cout << "********************************" << endl;
   cout << endl;
   cout << endl;
-  //cout << "Hauteur : " << ampl << endl;
-  real rG = sqrt(xjG^2+yjG^2);
-  cout << "Iter : " << j << "   centre   " << rG << endl;
-  //cout << "Alpha init : " << alpha << endl; // Gauss
-  cout << "Beta init : " << beta << endl; // Lorentz
-  //cout << "Zeta init : " << zeta << endl; // Lorentz 2
+
+  cout << "Hauteur : " << ampl << endl;
+  cout << "Distance du centre : " << rG << "    pour l'iteration " << j << endl;
+  
+  // Display initial starting parameter
+
+  // //Gauss
+  //cout << "Alpha init : " << alpha << endl;
+
+  // // //Lorentz
+  // cout << "Beta init : " << beta << endl;
+
+  //Lorentz 2
+  cout << "Zeta init : " << zeta << endl;
+
+  
   cout << endl;
   cout << endl;
-  // If not close to the border
-  if(rG < 12){
-    if(abs(ampl) > 0.001){
+  
+  // Conditions for fitting
+  if(rG < distmax*.75){ //if not to close from border
+    if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
 
       // //Gauss
       //func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
       //Vhj gai = gafi;
 
-      //Lorentz 
-      func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      Vhj gai = gafi;
-
-      // //Lorentz 2
-      // func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // //Lorentz 
+      // func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
       // Vhj gai = gafi;
+
+      //Lorentz 2
+      func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      Vhj gai = gafi;
       
-      plot(gai,wait=1,cmm = "Initialisation");
+      plot(gai,wait=1,cmm = "Initial test function for the fit");
       //BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
-      BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
-      //BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian2
+      //BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
+      BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian2
 
 
       // // Res gauss
       //func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
       //Vhj ga = gaf;
 
-      // Res Lorentz 
-      func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      Vhj ga = gaf;
-
-      // // // Res Lorentz 2
-      // func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // // Res Lorentz 
+      // func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
       // Vhj ga = gaf;
+
+      // // Res Lorentz 2
+      func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      Vhj ga = gaf;
       
-      string title2 = "Iter : " + j + "   uj and ga ";
-      plot(uj,wait=1, cmm = "uj");
+      string title2 = "Plot complet avec uj and ga pour l'iteration : " + j;
       plot(ga,wait=1, cmm = "ga");
       plot(uj,ga,wait=1,cmm=title2);
 
       cout << endl;
       cout << "****************************" << endl;
       //cout << "Alpha after BFGS : " << alpha << endl; // Gauss
-      cout << "Beta after BFGS : " << beta << endl; // Lorentz
-      //cout << "Zeta after BFGS : " << zeta << endl; // Lorentz 2
+      //cout << "Beta after BFGS : " << beta << endl; // Lorentz
+      cout << "Zeta after BFGS : " << zeta << endl; // Lorentz 2
     }
   }
   cout << endl;
@@ -304,6 +343,6 @@ for(int j = 0; j < lm.n; j++){
   cout << "********************************" << endl;
   cout << "End BFGS" << endl;
   cout << "********************************" << endl;
-  
+  //********************************************************************************
 
  }
