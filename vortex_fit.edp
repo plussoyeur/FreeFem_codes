@@ -73,7 +73,8 @@ for(int j = 0; j < lm.n; j++){
 
   // Plot truncated mesh
   string titletruncmesh = "Truncated mesh for " + j + "th minimum";
-  plot(Thj, wait=1, cmm = titletruncmesh);
+  //plot(Thj, wait=1, cmm = titletruncmesh);
+  plot(Thj, cmm = titletruncmesh);
   
   // Declare Pi sub-espace related to the truncated mesh
   fespace Vhj(Thj,P1);
@@ -82,18 +83,46 @@ for(int j = 0; j < lm.n; j++){
   // Restrict GPE solution to the truncated mesh
   Vhj uj = umod;
 
-  // Plot the restricted solution on the truncated mesh
-  string titlerestrsolution = "Plot of u" + j;
-  plot(uj, wait=1, cmm = titlerestrsolution);
-
-  //********************************************************************************
-  // Compute useful parameters from uj to find starting parameters for the fit
+  // Compute useful parameters from truncated mesh
   int globalindmin = lm[j]; //ind of min on the global mesh
   real xjG = Th(globalindmin).x; // x coord for the min
   real yjG = Th(globalindmin).y; // y coord for the min
-  real rG = sqrt(xjG^2+yjG^2); //dist from center
+  real rG = sqrt(xjG^2+yjG^2); //dist from center of initial mesh
+
   real ampl = uj[].max - uj[].min;
   real H = uj[].max;
+  
+  //********************************************************************************
+  // Restrict mesh by maximizing gradient
+  //********************************************************************************
+  if(rG < distmax*.75){ //if not to close from border
+    if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
+
+      Phj g2 = dx(uj)^2 + dy(uj)^2;
+      int localgradindmax = g2[].imax;
+      real xgradmax = Thj(localgradindmax).x;
+      real ygradmax = Thj(localgradindmax).y;
+      real radiusgradmax = sqrt((xgradmax-xjG)^2 + (ygradmax-yjG)^2);
+
+      
+      Phj rgrad2 = sqrt( (x-xgradmax)^2 + (y-ygradmax)^2 ); // distance from vortex center
+      plot(rgrad2, wait=1, cmm = "Dist from grad max");
+      plot(uj, wait = 1, cmm = "uj");
+      plot(g2, wait = 1, cmm = "grad");
+      Thj = trunc(Thj, ((x-xjG)^2+(y-yjG)^2 < radiusgradmax) );
+      plot(Thj, wait = 1, cmm = "New truncated mesh");
+    }
+  }
+
+
+  //********************************************************************************
+
+  
+  // Plot the restricted solution on the truncated mesh
+  string titlerestrsolution = "Plot of u" + j;
+    if(rG < distmax*.75 && abs(ampl) > 0.0001) plot(uj, wait=1, cmm = titlerestrsolution);
+  
+  
 
   Phj r2 = sqrt( (x-xjG)^2 + (y-yjG)^2 ); // distance from vortex center
   //plot(r2, wait=1, cmm = "Dist from center of this vortex");
@@ -103,7 +132,6 @@ for(int j = 0; j < lm.n; j++){
   real sigx = fx[].max;
   real sigy = fy[].max;
   
-  //********************************************************************************
 
   
   //********************************************************************************
@@ -278,66 +306,119 @@ for(int j = 0; j < lm.n; j++){
   cout << "Hauteur : " << ampl << endl;
   cout << "Distance du centre : " << rG << "    pour l'iteration " << j << endl;
   
+
+
+  // //**********************************
+  // // Gauss
+  // //**********************************
+  // cout << endl;
+  // cout << endl;
+  // // Display initial starting parameter
+  // cout << "Alpha init : " << alpha << endl;
+  // cout << endl;
+  // cout << endl;
+
+  // // Conditions for fitting
+  // if(rG < distmax*.75){ //if not to close from border
+  //   if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
+
+  //     // Initial test function
+  //     func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
+  //     Vhj gai = gafi;
+
+  //     // Plot initial test function
+  //     plot(gai,wait=1,cmm = "Initial test function for the fit || Gaussian");
+
+  //     // BFGS
+  //     BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
+
+  //     // Result
+  //     func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
+  //     Vhj ga = gaf;
+
+  //     cout << endl;
+  //     cout << "****************************" << endl;
+  //     cout << "Alpha after BFGS : " << alpha << endl; // Gauss
+  //   }
+  // }
+
+  //**********************************
+  // Lorentz
+  //**********************************
+  cout << endl;
+  cout << endl;
   // Display initial starting parameter
-
-  // //Gauss
-  //cout << "Alpha init : " << alpha << endl;
-
-  // // //Lorentz
-  // cout << "Beta init : " << beta << endl;
-
-  //Lorentz 2
-  cout << "Zeta init : " << zeta << endl;
-
-  
+  cout << "Beta init : " << beta << endl;
   cout << endl;
   cout << endl;
-  
+
   // Conditions for fitting
   if(rG < distmax*.75){ //if not to close from border
     if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
-
-      // //Gauss
-      //func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
-      //Vhj gai = gafi;
-
-      // //Lorentz 
-      // func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      // Vhj gai = gafi;
-
-      //Lorentz 2
-      func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      
+      // Initial test function
+      func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
       Vhj gai = gafi;
-      
-      plot(gai,wait=1,cmm = "Initial test function for the fit");
-      //BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
-      //BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
-      BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian2
 
+      // Plot initial test function
+      plot(gai,wait=1,cmm = "Initial test function for the fit || Lorentzian");
 
-      // // Res gauss
-      //func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
-      //Vhj ga = gaf;
+      // BFGS
+      BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20);
 
-      // // Res Lorentz 
-      // func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      // Vhj ga = gaf;
-
-      // // Res Lorentz 2
-      func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // Result
+      func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
       Vhj ga = gaf;
-      
-      string title2 = "Plot complet avec uj and ga pour l'iteration : " + j;
-      plot(ga,wait=1, cmm = "ga");
-      plot(uj,ga,wait=1,cmm=title2);
 
       cout << endl;
       cout << "****************************" << endl;
-      //cout << "Alpha after BFGS : " << alpha << endl; // Gauss
-      //cout << "Beta after BFGS : " << beta << endl; // Lorentz
-      cout << "Zeta after BFGS : " << zeta << endl; // Lorentz 2
+      cout << "Beta after BFGS : " << beta << endl; 
     }
   }
+
+  // //**********************************
+  // // Lorentz 2
+  // //**********************************
+  // cout << endl;
+  // cout << endl;
+  // // Display initial starting parameter
+  // cout << "Zeta init : " << zeta << endl;
+  // cout << endl;
+  // cout << endl;
+  
+
+  
+  // // Conditions for fitting
+  // if(rG < distmax*.75){ //if not to close from border
+  //   if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
+
+
+  //     // Initial test function
+  //     func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+  //     Vhj gai = gafi;
+
+  //     // Plot initial test function
+  //     plot(gai,wait=1,cmm = "Initial test function for the fit || Lorentzian 2");
+
+  //     // BFGS
+  //     BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20);
+
+  //     // Result
+  //     func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+  //     Vhj ga = gaf;
+      
+  //     string title2 = "Plot complet avec uj and ga pour l'iteration : " + j;
+  //     plot(ga,wait=1, cmm = "ga");
+  //     plot(uj,ga,wait=1,cmm=title2);
+
+  //     cout << endl;
+  //     cout << "****************************" << endl;
+  //     cout << "Zeta after BFGS : " << zeta << endl;
+  //   }
+  // }
+
+
+  
   cout << endl;
   cout << endl;
   cout << "********************************" << endl;
