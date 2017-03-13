@@ -69,7 +69,7 @@ for(int j = 0; j < lm.n; j++){
   cout << "Nous sommes a l'iteration : " << j << " / " << lm.n << endl;
   
   // Trunc mesh -> reduce to one basin of attraction
-  mesh Thj = trunc(Th, floor(r)==j); // take the jth minimum
+  mesh Thj = trunc(Th, floor(r)==j, label = -1); // take the jth minimum
 
   // Plot truncated mesh
   string titletruncmesh = "Truncated mesh for " + j + "th minimum";
@@ -98,267 +98,262 @@ for(int j = 0; j < lm.n; j++){
   if(rG < distmax*.75){ //if not to close from border
     if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
 
-      Phj g2 = dx(uj)^2 + dy(uj)^2;
-      int localgradindmax = g2[].imax;
-      real xgradmax = Thj(localgradindmax).x;
-      real ygradmax = Thj(localgradindmax).y;
-      real radiusgradmax = sqrt((xgradmax-xjG)^2 + (ygradmax-yjG)^2);
+      varf vbord(u,v) = on(-1,u=uj); // Define varf to extract values of uj on the border
+      real[int] vb = vbord(0,Vhj,tgv=1); // Stores these values in an array
+      vb = vb ? vb : 10^8; // If inside the truncated mesh : 0 -> 10⁸
+      int whereminborder = vb.imin; // Find min on the border
+      real xminborder = Thj(whereminborder).x; // x coord of this min
+      real yminborder = Thj(whereminborder).y; // y coord of this min
+      
+      real radiusminborder = sqrt((xminborder-xjG)^2 + (yminborder-yjG)^2); // Distance from the center of the mesh to the min on border
+      
+      // Vhj rfromminborder = sqrt( (x-xminborder)^2 + (y-yminborder)^2 );
+      // Phj rfromvertexcenter = sqrt( (x-xjG)^2 + (y-yjG)^2 );
+      // plot(rfromminborder, wait=1, cmm = "Dist from min on border");
+      // plot(rfromvertexcenter, wait=1, cmm = "Dist from vertex center");
+      // plot(uj, wait = 1, cmm = "uj");
+      
+      mesh Thjj = trunc(Thj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .8*radiusminborder) ); // Trunc truncated mesh 
+      plot(Thjj, wait = 1, cmm = "New truncated mesh"); // Plot new mesh
 
       
-      Phj rgrad2 = sqrt( (x-xgradmax)^2 + (y-ygradmax)^2 ); // distance from vortex center
-      plot(rgrad2, wait=1, cmm = "Dist from grad max");
-      plot(uj, wait = 1, cmm = "uj");
-      plot(g2, wait = 1, cmm = "grad");
-      Thj = trunc(Thj, ((x-xjG)^2+(y-yjG)^2 < radiusgradmax) );
-      plot(Thj, wait = 1, cmm = "New truncated mesh");
-    }
-  }
+      fespace Vhjj(Thjj,P1); // Define P1 functional space on this new mesh
+      fespace Phjj(Thjj,P0); // Define P0 functional space on this new mesh
+      
+      Vhjj ujj = uj; // Restrict function on this new mesh
+      string titlerestrsolution = "Plot of u" + j;
+      plot(ujj, wait=1, cmm = titlerestrsolution); // Plot the restricted solution on the truncated mesh
 
+	
+      //********************************************************************************
 
-  //********************************************************************************
-
-  
-  // Plot the restricted solution on the truncated mesh
-  string titlerestrsolution = "Plot of u" + j;
-    if(rG < distmax*.75 && abs(ampl) > 0.0001) plot(uj, wait=1, cmm = titlerestrsolution);
-  
-  
-
-  Phj r2 = sqrt( (x-xjG)^2 + (y-yjG)^2 ); // distance from vortex center
-  //plot(r2, wait=1, cmm = "Dist from center of this vortex");
-  real sig = r2[].max; // radius of vortex
-  Phj fx = x;
-  Phj fy = y;
-  real sigx = fx[].max;
-  real sigy = fy[].max;
+      Vhjj r2 = sqrt( (x-xjG)^2 + (y-yjG)^2 ); // distance from vortex center
+      plot(r2, wait=1, cmm = "Dist from center of this vortex");
+      real sig = r2[].max; // radius of vortex
+      Phjj fx = x;
+      Phjj fy = y;
+      real sigx = fx[].max;
+      real sigy = fy[].max;
   
 
+      //********************************************************************************
+      // GAUSSIAN FIT
   
-  //********************************************************************************
-  // GAUSSIAN FIT
-  
-  // Parameters
-  real[int] a(6);
-  real[int] alpha(6);
+      // Parameters
+      real[int] a(6);
+      real[int] alpha(6);
 
-  alpha[0] = -ampl;
-  alpha[1] = xjG;
-  alpha[2] = sig;
-  alpha[3] = yjG;
-  alpha[4] = sig;
-  alpha[5] = H;
+      alpha[0] = -ampl;
+      alpha[1] = xjG;
+      alpha[2] = sig;
+      alpha[3] = yjG;
+      alpha[4] = sig;
+      alpha[5] = H;
 
-  // Construct gaussian functionnal
-  func real Jgauss(real[int] & alpha){
-    for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
-    func gaf = a[5] + a[0]*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj ga = gaf;
-    real s = int2d(Thj)(.5*abs(ga-uj)^2);
-    return s;
-  }
+      // Construct gaussian functionnal
+      func real Jgauss(real[int] & alpha){
+      	for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
+      	func gaf = a[5] + a[0]*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj ga = gaf;
+      	real s = int2d(Thj)(.5*abs(ga-uj)^2);
+      	return s;
+      }
 
-  // Construct gaussian functionnal derivative
-  func real[int] DJgauss(real[int] & alpha){
-    for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
-    func gaf = a[5] + a[0]*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj ga = gaf;
-    func dgaf0 = exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj dga0 = dgaf0;
-    func dgaf1 = a[0]*(x-a[1])/a[2]^2*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj  dga1 = dgaf1;
-    func dgaf2 = a[0]*(x-a[1])^2/a[2]^3*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj dga2 = dgaf2;
-    func dgaf3 = a[0]*(y-a[3])/a[4]^2*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj  dga3 = dgaf3;
-    func dgaf4 = a[0]*(y-a[3])^2/a[4]^3*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
-    Vhj dga4 = dgaf2;
-    func dgaf5 = 1;
-    Vhj dga5 = dgaf5;
+      // Construct gaussian functionnal derivative
+      func real[int] DJgauss(real[int] & alpha){
+      	for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
+      	func gaf = a[5] + a[0]*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj ga = gaf;
+      	func dgaf0 = exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj dga0 = dgaf0;
+      	func dgaf1 = a[0]*(x-a[1])/a[2]^2*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj  dga1 = dgaf1;
+      	func dgaf2 = a[0]*(x-a[1])^2/a[2]^3*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj dga2 = dgaf2;
+      	func dgaf3 = a[0]*(y-a[3])/a[4]^2*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj  dga3 = dgaf3;
+      	func dgaf4 = a[0]*(y-a[3])^2/a[4]^3*exp(-(x-a[1])^2/(2*a[2]^2))*exp(-(y-a[3])^2/(2*a[4]^2));
+      	Vhjj dga4 = dgaf2;
+      	func dgaf5 = 1;
+      	Vhjj dga5 = dgaf5;
 
-    real[int] res(6);
-    res(0) = int2d(Thj)( (ga-uj)*dga0 );
-    res(1) = int2d(Thj)( (ga-uj)*dga1 );
-    res(2) = int2d(Thj)( (ga-uj)*dga2 );
-    res(3) = int2d(Thj)( (ga-uj)*dga3 );
-    res(4) = int2d(Thj)( (ga-uj)*dga4 );
-    res(5) = int2d(Thj)( (ga-uj)*dga5 );
+      	real[int] res(6);
+      	res(0) = int2d(Thj)( (ga-uj)*dga0 );
+      	res(1) = int2d(Thj)( (ga-uj)*dga1 );
+      	res(2) = int2d(Thj)( (ga-uj)*dga2 );
+      	res(3) = int2d(Thj)( (ga-uj)*dga3 );
+      	res(4) = int2d(Thj)( (ga-uj)*dga4 );
+      	res(5) = int2d(Thj)( (ga-uj)*dga5 );
 
-    return res;
-  }
-  //********************************************************************************
+      	return res;
+      }
+      //********************************************************************************
 
 
   
-  //********************************************************************************
-  // LORENTZIAN FIT 1
-  real[int] beta(5);
-  real[int] b(5);
-  beta[0] = ampl;
-  beta[1] = sig/5;
-  beta[2] = xjG;
-  beta[3] = yjG;
-  beta[4] = H;
+      //********************************************************************************
+      // LORENTZIAN FIT 1
+      real[int] beta(5);
+      real[int] b(5);
+      beta[0] = ampl;
+      beta[1] = sig/5;
+      beta[2] = xjG;
+      beta[3] = yjG;
+      beta[4] = H;
 
-  // Lorentzian functionnal
-  func real Jlorent(real[int] & beta){
-    for(int i = 0; i < beta.n; i++) b[i] = beta[i];
-    func gaf = b(4) - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
-    Vhj ga = gaf;
-    real s = int2d(Thj)( .5*abs(ga-uj)^2 );
-    return s;
-  }
+      // Lorentzian functionnal
+      func real Jlorent(real[int] & beta){
+      	for(int i = 0; i < beta.n; i++) b[i] = beta[i];
+      	func gaf = b(4) - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
+      	Vhjj ga = gaf;
+      	real s = int2d(Thj)( .5*abs(ga-uj)^2 );
+      	return s;
+      }
 
-  // Lorentzian functionnal derivative
-  func real[int] DJlorent(real[int] & beta){
-    for(int i = 0; i < beta.n; i++) b[i] = beta[i];
-    func gaf = b[4] - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  ) ;
-    Vhj ga = gaf;
-    func dgaf0 = -b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  ) ;
-    Vhj dga0 = dgaf0;
-    func dgaf1 = -2*b[0]*b[1]*( (x-b[2])^2 + (y-b[3])^2 )/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
-    Vhj dga1 = dgaf1;
-    func dgaf2 = -2*b[0]*b[1]^2*(x-b[2])/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
-    Vhj dga2 = dgaf2;
-    func dgaf3 = -2*b[0]*b[1]^2*(y-b[3])/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
-    Vhj dga3 = dgaf3;
-    func dgaf4 = 1;
-    Vhj dga4 = dgaf4;
+      // Lorentzian functionnal derivative
+      func real[int] DJlorent(real[int] & beta){
+      	for(int i = 0; i < beta.n; i++) b[i] = beta[i];
+      	func gaf = b[4] - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  ) ;
+      	Vhjj ga = gaf;
+      	func dgaf0 = -b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  ) ;
+      	Vhjj dga0 = dgaf0;
+      	func dgaf1 = -2*b[0]*b[1]*( (x-b[2])^2 + (y-b[3])^2 )/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
+      	Vhjj dga1 = dgaf1;
+      	func dgaf2 = -2*b[0]*b[1]^2*(x-b[2])/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
+      	Vhjj dga2 = dgaf2;
+      	func dgaf3 = -2*b[0]*b[1]^2*(y-b[3])/( (b[1]^2+ (x-b[2])^2 + (y-b[3])^2)^2  ) ;
+      	Vhjj dga3 = dgaf3;
+      	func dgaf4 = 1;
+      	Vhjj dga4 = dgaf4;
 
-    real[int] res(5);
-    res(0) = int2d(Thj)( (ga-uj)*dga0 );
-    res(1) = int2d(Thj)( (ga-uj)*dga1 );
-    res(2) = int2d(Thj)( (ga-uj)*dga2 );
-    res(3) = int2d(Thj)( (ga-uj)*dga3 );
-    res(4) = int2d(Thj)( (ga-uj)*dga4 );
+      	real[int] res(5);
+      	res(0) = int2d(Thj)( (ga-uj)*dga0 );
+      	res(1) = int2d(Thj)( (ga-uj)*dga1 );
+      	res(2) = int2d(Thj)( (ga-uj)*dga2 );
+      	res(3) = int2d(Thj)( (ga-uj)*dga3 );
+      	res(4) = int2d(Thj)( (ga-uj)*dga4 );
 
-    return res;
-  }
+      	return res;
+      }
 
 
 
-  //********************************************************************************
+      //********************************************************************************
   
   
 
 
   
-  //********************************************************************************
-  // LORENTZIAN FIT 2
-  real[int] zeta(6);
-  real[int] zz(6);
-  zeta[0] = ampl;
-  zeta[1] = xjG;
-  zeta[2] = sigx*.3;
-  zeta[3] = yjG;
-  zeta[4] = sigy*.3;
-  zeta[5] = H;
+      //********************************************************************************
+      // LORENTZIAN FIT 2
+      real[int] zeta(6);
+      real[int] zz(6);
+      zeta[0] = ampl;
+      zeta[1] = xjG;
+      zeta[2] = sigx*.3;
+      zeta[3] = yjG;
+      zeta[4] = sigy*.3;
+      zeta[5] = H;
   
-  // Lorentzian 2 functionnal 
-  func real Jlorent2(real[int] & zeta){
-    for(int i = 0; i < zeta.n; i++) zz[i] = zeta[i];
-    func gaf = zz(5) - zz[0]/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
-    Vhj ga = gaf;
-    real s = int2d(Thj)( .5*abs(ga-uj)^2 );
-    return s;
-  }
+      // Lorentzian 2 functionnal 
+      func real Jlorent2(real[int] & zeta){
+      	for(int i = 0; i < zeta.n; i++) zz[i] = zeta[i];
+      	func gaf = zz(5) - zz[0]/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
+      	Vhjj ga = gaf;
+      	real s = int2d(Thj)( .5*abs(ga-uj)^2 );
+      	return s;
+      }
 
-  // Lorentzian 2 functionnal derivative
-  func real[int] DJlorent2(real[int] & zeta){
-    for(int i = 0; i < zeta.n; i++) zz[i] = zeta[i];
-    func gaf = zz(5) - zz[0]/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
-    Vhj ga = gaf;
-    func dgaf0 = -1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
-    Vhj dga0 = dgaf0;
-    func dgaf1 = (-2*zz[0]*(x-zz[1])^2/zz[2]^3)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
-    Vhj dga1 = dgaf1;
-    func dgaf2 = (-2*zz[0]*(x-zz[1])/zz[2]^2)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
-    Vhj dga2 = dgaf2;
-    func dgaf3 = (-2*zz[0]*(y-zz[3])^2/zz[4]^3)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
-    Vhj dga3 = dgaf3;
-    func dgaf4 = (-2*zz[0]*(y-zz[3])/zz[4]^2)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
-    Vhj dga4 = dgaf4;
-    func dgaf5 = 1;
-    Vhj dga5 = dgaf5;
+      // Lorentzian 2 functionnal derivative
+      func real[int] DJlorent2(real[int] & zeta){
+      	for(int i = 0; i < zeta.n; i++) zz[i] = zeta[i];
+      	func gaf = zz(5) - zz[0]/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
+      	Vhjj ga = gaf;
+      	func dgaf0 = -1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
+      	Vhjj dga0 = dgaf0;
+      	func dgaf1 = (-2*zz[0]*(x-zz[1])^2/zz[2]^3)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+      	Vhjj dga1 = dgaf1;
+      	func dgaf2 = (-2*zz[0]*(x-zz[1])/zz[2]^2)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+      	Vhjj dga2 = dgaf2;
+      	func dgaf3 = (-2*zz[0]*(y-zz[3])^2/zz[4]^3)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+      	Vhjj dga3 = dgaf3;
+      	func dgaf4 = (-2*zz[0]*(y-zz[3])/zz[4]^2)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+      	Vhjj dga4 = dgaf4;
+      	func dgaf5 = 1;
+      	Vhjj dga5 = dgaf5;
 
-    real[int] res(6);
-    res(0) = int2d(Thj)( (ga-uj)*dga0 );
-    res(1) = int2d(Thj)( (ga-uj)*dga1 );
-    res(2) = int2d(Thj)( (ga-uj)*dga2 );
-    res(3) = int2d(Thj)( (ga-uj)*dga3 );
-    res(4) = int2d(Thj)( (ga-uj)*dga4 );
-    res(5) = int2d(Thj)( (ga-uj)*dga5 );
+      	real[int] res(6);
+      	res(0) = int2d(Thj)( (ga-uj)*dga0 );
+      	res(1) = int2d(Thj)( (ga-uj)*dga1 );
+      	res(2) = int2d(Thj)( (ga-uj)*dga2 );
+      	res(3) = int2d(Thj)( (ga-uj)*dga3 );
+      	res(4) = int2d(Thj)( (ga-uj)*dga4 );
+      	res(5) = int2d(Thj)( (ga-uj)*dga5 );
     
-    return res;
-  }
+      	return res;
+      }
 
 
 
-  //********************************************************************************
+      //********************************************************************************
   
-  //********************************************************************************
-  // Fit using BFGS
-  cout << "********************************" << endl;
-  cout << "Start BFGS" << endl;
-  cout << "********************************" << endl;
-  cout << endl;
-  cout << endl;
+      //********************************************************************************
+      // Fit using BFGS
+      cout << "********************************" << endl;
+      cout << "Start BFGS" << endl;
+      cout << "********************************" << endl;
+      cout << endl;
+      cout << endl;
 
-  cout << "Hauteur : " << ampl << endl;
-  cout << "Distance du centre : " << rG << "    pour l'iteration " << j << endl;
+      cout << "Hauteur : " << ampl << endl;
+      cout << "Distance du centre : " << rG << "    pour l'iteration " << j << endl;
   
 
 
-  // //**********************************
-  // // Gauss
-  // //**********************************
-  // cout << endl;
-  // cout << endl;
-  // // Display initial starting parameter
-  // cout << "Alpha init : " << alpha << endl;
-  // cout << endl;
-  // cout << endl;
+      // //**********************************
+      // // Gauss
+      // //**********************************
+      // cout << endl;
+      // cout << endl;
+      // // Display initial starting parameter
+      // cout << "Alpha init : " << alpha << endl;
+      // cout << endl;
+      // cout << endl;
 
-  // // Conditions for fitting
-  // if(rG < distmax*.75){ //if not to close from border
-  //   if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
+      // // Initial test function
+      // func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
+      // Vhjj gai = gafi;
 
-  //     // Initial test function
-  //     func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
-  //     Vhj gai = gafi;
+      // // Plot initial test function
+      // plot(gai,wait=1,cmm = "Initial test function for the fit || Gaussian");
 
-  //     // Plot initial test function
-  //     plot(gai,wait=1,cmm = "Initial test function for the fit || Gaussian");
+      // // BFGS
+      // BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
 
-  //     // BFGS
-  //     BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
+      // // Result
+      // func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
+      // Vhjj ga = gaf;
 
-  //     // Result
-  //     func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
-  //     Vhj ga = gaf;
+      // plot(ga,ujj,wait=1,cmm = "Display of uj and its fit");
 
-  //     cout << endl;
-  //     cout << "****************************" << endl;
-  //     cout << "Alpha after BFGS : " << alpha << endl; // Gauss
-  //   }
-  // }
+      // cout << endl;
+      // cout << "****************************" << endl;
+      // cout << "Alpha after BFGS : " << alpha << endl; // Gauss
 
-  //**********************************
-  // Lorentz
-  //**********************************
-  cout << endl;
-  cout << endl;
-  // Display initial starting parameter
-  cout << "Beta init : " << beta << endl;
-  cout << endl;
-  cout << endl;
 
-  // Conditions for fitting
-  if(rG < distmax*.75){ //if not to close from border
-    if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
+      //**********************************
+      // Lorentz
+      //**********************************
+      cout << endl;
+      cout << endl;
+      // Display initial starting parameter
+      cout << "Beta init : " << beta << endl;
+      cout << endl;
+      cout << endl;
       
       // Initial test function
       func gafi = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      Vhj gai = gafi;
+      Vhjj gai = gafi;
 
       // Plot initial test function
       plot(gai,wait=1,cmm = "Initial test function for the fit || Lorentzian");
@@ -368,62 +363,65 @@ for(int j = 0; j < lm.n; j++){
 
       // Result
       func gaf = beta[4] - beta[0]*beta[1]^2/( beta[1]^2+ (x-beta[2])^2 + (y-beta[3])^2  );
-      Vhj ga = gaf;
+      Vhjj ga = gaf;
+
+      plot(ga,ujj,wait=1,cmm = "Display of uj and its fit");
+
+      Vhjj diff = abs( (ga-ujj) / ujj);
+      plot(diff,wait=1,cmm = "Difference");
 
       cout << endl;
       cout << "****************************" << endl;
       cout << "Beta after BFGS : " << beta << endl; 
+
+
+      // //**********************************
+      // // Lorentz 2
+      // //**********************************
+      // cout << endl;
+      // cout << endl;
+      // // Display initial starting parameter
+      // cout << "Zeta init : " << zeta << endl;
+      // cout << endl;
+      // cout << endl;
+
+      // // Initial test function
+      // func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // Vhjj gai = gafi;
+
+      // // Plot initial test function
+      // plot(gai,wait=1,cmm = "Initial test function for the fit || Lorentzian 2");
+
+      // // BFGS
+      // BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20);
+
+      // // Result
+      // func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+      // Vhjj ga = gaf;
+      
+      // string title2 = "Plot complet avec uj and ga pour l'iteration : " + j;
+      // plot(ga,wait=1, cmm = "ga");
+      // plot(uj,ga,wait=1,cmm=title2);
+
+      // plot(ga,ujj,wait=1,cmm = "Display of uj and its fit");
+      
+      cout << endl;
+      cout << "****************************" << endl;
+      cout << "Zeta after BFGS : " << zeta << endl;
+
+
+
+  
+      cout << endl;
+      cout << endl;
+      cout << "********************************" << endl;
+      cout << "End BFGS" << endl;
+      cout << "********************************" << endl;
+      //********************************************************************************
+
+
     }
   }
 
-  // //**********************************
-  // // Lorentz 2
-  // //**********************************
-  // cout << endl;
-  // cout << endl;
-  // // Display initial starting parameter
-  // cout << "Zeta init : " << zeta << endl;
-  // cout << endl;
-  // cout << endl;
   
-
-  
-  // // Conditions for fitting
-  // if(rG < distmax*.75){ //if not to close from border
-  //   if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
-
-
-  //     // Initial test function
-  //     func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
-  //     Vhj gai = gafi;
-
-  //     // Plot initial test function
-  //     plot(gai,wait=1,cmm = "Initial test function for the fit || Lorentzian 2");
-
-  //     // BFGS
-  //     BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20);
-
-  //     // Result
-  //     func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
-  //     Vhj ga = gaf;
-      
-  //     string title2 = "Plot complet avec uj and ga pour l'iteration : " + j;
-  //     plot(ga,wait=1, cmm = "ga");
-  //     plot(uj,ga,wait=1,cmm=title2);
-
-  //     cout << endl;
-  //     cout << "****************************" << endl;
-  //     cout << "Zeta after BFGS : " << zeta << endl;
-  //   }
-  // }
-
-
-  
-  cout << endl;
-  cout << endl;
-  cout << "********************************" << endl;
-  cout << "End BFGS" << endl;
-  cout << "********************************" << endl;
-  //********************************************************************************
-
  }

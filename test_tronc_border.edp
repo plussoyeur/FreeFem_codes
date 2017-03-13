@@ -1,0 +1,22 @@
+mesh Th=square(10,10);
+fespace Vh(Th,[P2,P2]);                                   //    exemple of finite element
+int[int] ib(0:Vh.ndof-1);
+cout << ib << endl;
+cout << endl;
+cout << endl;
+//    arry ib[i]=i of size the number of DoF
+{                      //    for memory management: all locals are remove at end of block
+//    to get numbering in good order ..
+//    for u1: x-10 alway <0
+//    for u2: x-10 + 1e-10 alway <0 but a little gearter than u1 so after
+//    after sort we have u1 u2 node 1,u1 u2 node 1, .... with node numbering x
+//    at the begin of the array
+varf vbord([u1,u2],[v1,v2]) = on(1,u1=x-10,u2=x-10+1e-10);
+real[int] xb=vbord(0,Vh,tgv=1);                 //    get the interpolation on border 1 .
+sort(xb,ib);                                            //    sort of 2 array in parallel
+//    so now the begin of the array is the dof on label 1 and in ib we have the numbering
+xb = xb ? 1 : 0;
+int ndofon1 = xb.sum +0.5;                         //    to count the number of non zero.
+ib.resize(ndofon1);                                             //    resize of the array
+}
+cout << ib << endl;
