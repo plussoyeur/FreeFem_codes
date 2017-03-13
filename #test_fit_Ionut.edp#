@@ -1,0 +1,84 @@
+mesh Th = square(100,100,[x,y]);
+fespace Vh(Th,P1);
+fespace Ph(Th,P0);
+
+real H = 1;
+real R = 2;
+real x0 = .3;
+real y0 = .8;
+real Gamx = .1;
+real Gamy = .15;
+
+func r = sqrt( ( (x-x0)/Gamx  )^2 + ( (y-y0)/Gamy  )^2);
+func g = H+R*r/sqrt(r^2 + 2);
+Vh u = g;
+
+Ph xx = x, yy = y;
+
+cout << "Amplitude : " << u[].max - u[].min << endl;
+
+plot(u, wait=1, cmm="Ionut function");
+
+
+//************************************************************************************
+// IONUT FIT
+
+real [int] ionut(3);
+real [int] ion(3);
+
+ionut[0] = u[].max - u[].min;
+ionut[1] = .3*xx[].max;
+ionut[2] = .3*yy[].max;
+
+func real Jionut(real[int] & ionut){
+  for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+  func r =  sqrt( ( (x-x0)/ion[1])^2 + ( (y-y0)/ion[2]  )^2);
+  func ga = ion[0] + R*r/sqrt(r^2 + 2);
+  real s = int2d(Th)(0.5*abs(ga-u));
+  return s;
+}
+
+func real[int] DJionut(real[int] & ionut){
+  for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+  cout << ion << endl;
+  func r =  sqrt( ( (x-x0)/ion[1])^2 + ( (y-y0)/ion[2]  )^2);
+  func ga = H + ion[0]*r/sqrt(r^2 + 2);
+  func dr1= -(x-x0)^2/(ion[1]^3*r);
+  func dr2 = -(y-y0)^2/(ion[1]^3*r);
+
+  func dgaf0 = r/sqrt(r^2 + 2);
+  Vh dga0 = dgaf0;
+
+  func dgaf1 = ion[0]*(dr1*sqrt(r^2+2)- r^2*dr1/sqrt(r^2+2))/(r^2+2);
+  Vh dga1 = dgaf1;
+
+  func dgaf2 = ion[0]*(dr2*sqrt(r^2+2)- r^2*dr2/sqrt(r^2+2))/(r^2+2);
+  Vh dga2 = dgaf2;  
+
+  real[int] res(3);
+  res(0) = int2d(Th)( (ga-u)*dga0 );
+  res(1) = int2d(Th)( (ga-u)*dga1 );
+  res(2) = int2d(Th)( (ga-u)*dga2 );
+
+  return res;  
+}
+
+func rinit = sqrt( ( (x-x0)/ionut[1]  )^2 + ( (y-y0)/ionut[2]  )^2);
+func ginit = H+ionut[0]*r/sqrt(r^2 + 2);
+Vh uinit = g;
+
+
+real[int] ionutinit = ionut;
+BFGS(Jionut,DJionut,ionut,eps=1.e-10,nbiter=15,nbiterline=20);
+
+cout << "vect initial :  " << ionutinit << endl;
+cout << "vect apres BFGS :  " << ionut << endl;
+
+func rfin = sqrt( ( (x-x0)/ionut[1]  )^2 + ( (y-y0)/ionut[2]  )^2);
+func gfin = H+ionut[0]*r/sqrt(r^2 + 2);
+Vh ufin = g;
+
+plot(u,wait=1,cmm="Fonction initiale");
+plot(uinit,wait=1,cmm="Init");
+plot(ufin,wait=1,cmm="Fit");
+plot(ufin,u,wait=1,cmm="U et son fit");

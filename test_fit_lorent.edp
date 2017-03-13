@@ -2,18 +2,44 @@ mesh Th = square(100,100,[x,y]);
 fespace Vh(Th,P1);
 fespace Ph(Th,P0);
 
-real Gam = 0.01;
-func g = 5-5*(Gam*Gam)/( Gam*Gam + (x-.5)^2 + (y-.5)^2 );
+//real Gam = 0.01;
+//func g = 5-5*(Gam*Gam)/( Gam*Gam + (x-.5)^2 + (y-.5)^2 );
+//Vh uj = g;
+
+
+
+real H = 1;
+real R = 2;
+real x0 = .3;
+real y0 = .8;
+real Gamx = .1;
+real Gamy = .15;
+
+real ksi = .1;
+func r = sqrt( ( (x-x0)/Gamx  )^2 + ( (y-y0)/Gamy  )^2);
+func gt = H+R*r/sqrt(r^2 + 2);
+Vh ut = gt;
+
+cout << "Amplitude : " << ut[].max - ut[].min << endl;
+
+plot(ut, wait=1, cmm="New test function");
+
+
+
+func g = H - R/( 1 + ( (x-x0)/Gamx )^2 + ( (y-y0)/Gamy )^2  );
 Vh uj = g;
 
-plot(uj,wait=1);
+plot(uj,ut,wait=1, cmm = "Uj");
 
 int mini = uj[].imin; 
 real xG = Th(mini).x;
 real yG = Th(mini).y;
 Ph r2 = sqrt((x-xG)^2+(y-yG)^2);
 real sig = r2[].max;
-
+Ph xx = x, yy = y;
+real sigx = .2*xx[].max;
+real sigy = .2*yy[].max;
+real ampl = uj[].max - uj[].min;
 
 //********************************************************************************
 // LORENTZIAN FIT
@@ -60,13 +86,79 @@ func real[int] DJlorent(real[int] & beta){
   return res;
 }
 
-cout << "Beta init : " << beta << endl;
 
-BFGS(Jlorent,DJlorent,beta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
 
-func gaf = b[4] - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
+
+//********************************************************************************
+// LORENTZIAN FIT 2
+real[int] zeta(6);
+real[int] zz(6);
+zeta[0] = ampl;
+zeta[1] = xG;
+zeta[2] = sigx;
+zeta[3] = yG;
+zeta[4] = sigy;
+zeta[5] = H;
+  
+// Lorentzian 2 functionnal 
+func real Jlorent2(real[int] & zeta){
+  for(int i = 0; i < zeta.n; i++) zz[i] = zeta[i];
+  func gaf = zz(5) - zz[0]/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
+  Vh ga = gaf;
+  real s = int2d(Th)( .5*abs(ga-uj)^2 );
+  return s;
+}
+
+// Lorentzian 2 functionnal derivative
+func real[int] DJlorent2(real[int] & zeta){
+  for(int i = 0; i < zeta.n; i++) zz[i] = zeta[i];
+  func gaf = zz(5) - zz[0]/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
+  Vh ga = gaf;
+  func dgaf0 = -1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  );
+  Vh dga0 = dgaf0;
+  func dgaf2 = (-2*zz[0]*(x-zz[1])^2/zz[2]^3)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+  Vh dga2 = dgaf2;
+  func dgaf1 = (-2*zz[0]*(x-zz[1])/zz[2]^2)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+  Vh dga1 = dgaf1;
+  func dgaf4 = (-2*zz[0]*(y-zz[3])^2/zz[4]^3)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+  Vh dga4 = dgaf4;
+  func dgaf3 = (-2*zz[0]*(y-zz[3])/zz[4]^2)*1/( 1 + ( (x-zz[1])/zz[2] )^2 + ( (y-zz[3])/zz[4] )^2  )^2;
+  Vh dga3 = dgaf3;
+  func dgaf5 = 1;
+  Vh dga5 = dgaf5;
+
+  real[int] res(6);
+  res(0) = int2d(Th)( (ga-uj)*dga0 );
+  res(1) = int2d(Th)( (ga-uj)*dga1 );
+  res(2) = int2d(Th)( (ga-uj)*dga2 );
+  res(3) = int2d(Th)( (ga-uj)*dga3 );
+  res(4) = int2d(Th)( (ga-uj)*dga4 );
+  res(5) = int2d(Th)( (ga-uj)*dga5 );
+    
+  return res;
+}
+
+
+real [int] zetainit = zeta;
+
+
+//cout << "Zeta init : " << zeta << endl;
+
+func gafi = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
+Vh gai = gafi;
+plot(gai,wait=1,cmm="Ansatz");
+
+BFGS(Jlorent2,DJlorent2,zeta,eps=1.e-10,nbiter=15,nbiterline=20); // Lorentzian
+
+// func gaf = b[4] - b[0]*b[1]^2/( b[1]^2+ (x-b[2])^2 + (y-b[3])^2  );
+// Vh ga = gaf;
+
+func gaf = zeta(5) - zeta[0]/( 1 + ( (x-zeta[1])/zeta[2] )^2 + ( (y-zeta[3])/zeta[4] )^2  );
 Vh ga = gaf;
 
-cout << "Final beta : " << beta << endl;
-plot(ga,wait=1,cmm="ga");
+cout << "Init zeta : " << zetainit << endl;
+cout << "Final zeta : " << zeta << endl;
+plot(ga,wait=1,cmm="Fit final");
 plot(ga,uj,wait=1,cmm="ga et uj");
+Vh diff = abs((ga-uj)/uj);
+plot(diff,wait=1,cmm="Difference");
