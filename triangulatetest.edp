@@ -1,0 +1,13 @@
+real [int] xx,yy;
+for(int i = 0; i < 7; i++){
+  xx[i] = i;
+  yy[i] = i;
+ }
+
+for(int i = 7; i < 10; i++){
+  xx[i] = 0;
+  yy[i] = 0;
+ }
+
+mesh Th = triangulate(xx,yy);
+plot(Th,wait=1);

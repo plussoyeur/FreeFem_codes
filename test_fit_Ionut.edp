@@ -1,85 +1,210 @@
-mesh Th = square(100,100,[x,y]);
-fespace Vh(Th,P1);
-fespace Ph(Th,P0);
-
-real H = 1;
-real R = 2;
-real x0 = .3;
-real y0 = .8;
-real Gamx = .1;
-real Gamy = .15;
-
-func r = sqrt( ( (x-x0)/Gamx  )^2 + ( (y-y0)/Gamy  )^2);
-func g = H+R*r/sqrt(r^2 + 2);
-Vh u = g;
-
-Ph xx = x, yy = y;
-
-cout << "Amplitude : " << u[].max - u[].min << endl;
-
-plot(u, wait=1, cmm="Ionut function");
-
-
 //************************************************************************************
 // IONUT FIT
 
-real [int] ionut(3);
-real [int] ion(3);
+// real [int] ionut(3);
+// real [int] ion(3);
 
-ionut[0] = u[].max - u[].min;
-ionut[1] = .3*xx[].max;
-ionut[2] = .3*yy[].max;
+// ionut[0] = u[].max - u[].min;
+// ionut[1] = .3*xx[].max;
+// ionut[2] = .3*yy[].max;
+
+// func real Jionut(real[int] & ionut){
+//   for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+//   func r =  sqrt( ( (x-x0)/ion[1])^2 + ( (y-y0)/ion[2]  )^2);
+//   func ga = ion[0] + R*r/sqrt(r^2 + 2);
+//   real s = int2d(Th)(0.5*abs(ga-u));
+//   return s;
+// }
+
+// func real[int] DJionut(real[int] & ionut){
+//   for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+//   cout << ion << endl;
+//   func r =  sqrt( ( (x-x0)/ion[1])^2 + ( (y-y0)/ion[2]  )^2);
+//   func ga = H + ion[0]*r/sqrt(r^2 + 2);
+//   func dr1= -(x-x0)^2/(ion[1]^3*r);
+//   func dr2 = -(y-y0)^2/(ion[1]^3*r);
+
+//   func dgaf0 = r/sqrt(r^2 + 2);
+//   Vh dga0 = dgaf0;
+
+//   func dgaf1 = ion[0]*(dr1*sqrt(r^2+2)- r^2*dr1/sqrt(r^2+2))/(r^2+2);
+//   Vh dga1 = dgaf1;
+
+//   func dgaf2 = ion[0]*(dr2*sqrt(r^2+2)- r^2*dr2/sqrt(r^2+2))/(r^2+2);
+//   Vh dga2 = dgaf2;  
+
+//   real[int] res(3);
+//   res(0) = int2d(Th)( (ga-u)*dga0 );
+//   res(1) = int2d(Th)( (ga-u)*dga1 );
+//   res(2) = int2d(Th)( (ga-u)*dga2 );
+
+//   return res;  
+// }x
+
+// func rinit = sqrt( ( (x-x0)/ionut[1]  )^2 + ( (y-y0)/ionut[2]  )^2);
+// func ginit = H+ionut[0]*r/sqrt(r^2 + 2);
+// Vh uinit = g;
+
+
+// real[int] ionutinit = ionut;
+// //BFGS(Jionut,DJionut,ionut,eps=1.e-10,nbiter=15,nbiterline=20);
+
+// cout << "vect initial :  " << ionutinit << endl;
+// cout << "vect apres BFGS :  " << ionut << endl;
+
+// func rfin = sqrt( ( (x-x0)/ionut[1]  )^2 + ( (y-y0)/ionut[2]  )^2);
+// func gfin = H+ionut[0]*r/sqrt(r^2 + 2);
+// Vh ufin = g;
+
+// plot(u,wait=1,cmm="Fonction initiale");
+// plot(uinit,wait=1,cmm="Init");
+// plot(ufin,wait=1,cmm="Fit");
+// plot(ufin,u,wait=1,cmm="U et son fit");
+
+load "fflapack";
+
+//mesh Th = square(100,100,[x,y],label=l);
+border a1(t=0,1.0){x=t; y=0; label=1;};
+border a2(t=0,1.0){x=1; y=t; label=1;};
+border a3(t=1.0,0){x=t; y=1; label=1;};
+border a4(t=1.0,0){x=0; y=t; label=1;};
+mesh Th = buildmesh(a1(100) + a2(100) + a3(100) + a4(100) );
+
+
+
+fespace Vh(Th,P1);
+fespace Vhh(Th,[P1,P1]);
+fespace Ph(Th,P0);
+
+real R = 2;
+real x0 = .5;
+real y0 = .5;
+real Gamx = .1;
+real Gamy = .15;
+
+
+Ph xx = x, yy = y;
+
+
+// Parameters
+real a = 1;
+real b = .8;
+real c = 1;
+
+func r2 = a*(x-x0)^2+2*b*(x-x0)*(y-y0)+c*(y-y0)^2;
+func r2a = (x-x0)^2;
+func r2b = 2*(x-x0)*(y-y0);
+func r2c = (y-y0)^2;
+
+
+
+func f = R*sqrt(r2)/sqrt(2+r2);
+Vh uf = f;
+plot(uf,wait=1,cmm="New test function");
+
+
+varf vbord(uh,vh) = on(1,uh=uf);
+real[int] vb = vbord(0,Vh,tgv=1);
+vb = vb ? vb : 10^8;
+cout << "Min border : " << vb.min << endl;
+int whereminborder = vb.imin;
+real minborder = vb.min-.01;
+real xminborder = Th(whereminborder).x;
+real yminborder = Th(whereminborder).y;
+real val = 2*minborder^2/R^2/(1-minborder^2/R^2);
+
+
+real[int,int] M(3,3);
+M(0,0) = int1d(Th,levelset=uf-minborder)( (x-x0)^4  );
+M(0,1) = int1d(Th,levelset=uf-minborder)( 2*(x-x0)^3*(y-y0)  );
+M(0,2) = int1d(Th,levelset=uf-minborder)( (x-x0)^2*(y-y0)^2  );
+M(1,0) = int1d(Th,levelset=uf-minborder)( (x-x0)^3*(y-y0)  );
+M(1,1) = int1d(Th,levelset=uf-minborder)( 2*(x-x0)^2*(y-y0)^2  );
+M(1,2) = int1d(Th,levelset=uf-minborder)( (x-x0)*(y-y0)^3 );
+M(2,0) = int1d(Th,levelset=uf-minborder)( (x-x0)^2*(y-y0)^2  );
+M(2,1) = int1d(Th,levelset=uf-minborder)( 2*(y-y0)^3*(x-x0)  );
+M(2,2) = int1d(Th,levelset=uf-minborder)( (y-y0)^4  );
+
+
+cout << "M avant inv : " << M << endl;
+
+inv(M);
+
+cout << "M apres inv : " << M << endl;
+
+real[int] SM(3);
+SM(0) = int1d(Th,levelset=uf-minborder)( (x-x0)^2  )*val;
+SM(1) = int1d(Th,levelset=uf-minborder)( (x-x0)*(y-y0)  )*val;
+SM(2) = int1d(Th,levelset=uf-minborder)( (y-y0)^2  )*val;
+
+cout << "Second membre : " << SM << endl;
+
+cout << "x min border : " << xminborder << "   " << "yminborder : " << yminborder << endl;
+
+// Fit
+real[int] ionut(3), ionutinit(3);
+real[int] ion(3);
+
+real epsilon = 0.00000000001;
+
+ionut = M*SM;
+
+
+cout << "Param init : " << ionut << endl;
+
+ionutinit = ionut;
 
 func real Jionut(real[int] & ionut){
   for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
-  func r =  sqrt( ( (x-x0)/ion[1])^2 + ( (y-y0)/ion[2]  )^2);
-  func ga = ion[0] + R*r/sqrt(r^2 + 2);
-  real s = int2d(Th)(0.5*abs(ga-u));
+  func ri2 = ion[0]*(x-x0)^2+2*ion[1]*(x-x0)*(y-y0)+ion[2]*(y-y0)^2;
+  func fionut = R*sqrt(ri2+epsilon)/sqrt(2+ri2+epsilon);
+  Vh vfionut = fionut;
+  real s = int2d(Th)(0.5*abs(vfionut-uf)^2);
   return s;
 }
 
-func real[int] DJionut(real[int] & ionut){
+func real[int] DJionut(real [int] & ionut){
   for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
-  cout << ion << endl;
-  func r =  sqrt( ( (x-x0)/ion[1])^2 + ( (y-y0)/ion[2]  )^2);
-  func ga = H + ion[0]*r/sqrt(r^2 + 2);
-  func dr1= -(x-x0)^2/(ion[1]^3*r);
-  Vh ddr = dr1;
-  func dr2 = -(y-y0)^2/(ion[1]^3*r);
+  func ri2 = ion[0]*(x-x0)^2+2*ion[1]*(x-x0)*(y-y0)+ion[2]*(y-y0)^2;
+  func fionut = R*sqrt(ri2+epsilon)/sqrt(2+ri2+epsilon);
+  Vh vfionut = fionut;
+  
+  func fa = r2a*1/(sqrt(ri2+epsilon)*(1+ri2+epsilon)^(3/2));
+  Vh vfa = fa;
 
-  func dgaf0 = r/sqrt(r^2 + 2);
-  Vh dga0 = dgaf0;
+  func fb = r2b*1/(sqrt(ri2+epsilon)*(1+ri2+epsilon)^(3/2));
+  Vh vfb = fb;
 
-  func dgaf1 = ion[0]*(dr1*sqrt(r^2+2)- r^2*dr1/sqrt(r^2+2))/(r^2+2);
-  Vh dga1 = dgaf1;
-
-  func dgaf2 = ion[0]*(dr2*sqrt(r^2+2)- r^2*dr2/sqrt(r^2+2))/(r^2+2);
-  Vh dga2 = dgaf2;  
-
+  func fc = r2c*1/(sqrt(ri2+epsilon)*(1+ri2+epsilon)^(3/2));
+  Vh vfc = fc;
+  
   real[int] res(3);
-  res(0) = int2d(Th)( (ga-u)*dga0 );
-  res(1) = int2d(Th)( (ga-u)*dga1 );
-  res(2) = int2d(Th)( (ga-u)*dga2 );
+  res[0] = int2d(Th)( (vfionut-uf)*vfa  );
+  res[1] = int2d(Th)( (vfionut-uf)*vfb  );
+  res[2] = int2d(Th)( (vfionut-uf)*vfc  );
 
-  return res;  
+  return res;
+  
 }
 
-func rinit = sqrt( ( (x-x0)/ionut[1]  )^2 + ( (y-y0)/ionut[2]  )^2);
-func ginit = H+ionut[0]*r/sqrt(r^2 + 2);
-Vh uinit = g;
+
+BFGS(Jionut,DJionut,ionut,eps=1.e-15,nbiter=30,nbiterline=40);
+
+cout << "Param init : " << ionutinit << endl;
+cout << "Param after BFGS : " << ionut << endl;
+
+func r2i = ionutinit[0]*(x-x0)^2+2*ionutinit[1]*(x-x0)*(y-y0)+ionutinit[2]*(y-y0)^2;
+func fi = R*sqrt(r2i)/sqrt(2+r2i);
+Vh ufi = fi;
+plot(ufi,wait=1,cmm="Init fit");
+
+func r2f = ionut[0]*(x-x0)^2+2*ionut[1]*(x-x0)*(y-y0)+ionut[2]*(y-y0)^2;
+func ff =  R*sqrt(r2f)/sqrt(2+r2f);
+Vh uff = ff;
+plot(uff,wait=1,cmm="Final fit");
+plot(uff,uf,wait=1,cmm="Both");
+Vh diff = abs( (uff-uf)/uf );
+plot(diff,wait=1,cmm="Diff");
 
 
-real[int] ionutinit = ionut;
-BFGS(Jionut,DJionut,ionut,eps=1.e-10,nbiter=15,nbiterline=20);
 
-cout << "vect initial :  " << ionutinit << endl;
-cout << "vect apres BFGS :  " << ionut << endl;
-
-func rfin = sqrt( ( (x-x0)/ionut[1]  )^2 + ( (y-y0)/ionut[2]  )^2);
-func gfin = H+ionut[0]*r/sqrt(r^2 + 2);
-Vh ufin = g;
-
-plot(u,wait=1,cmm="Fonction initiale");
-plot(uinit,wait=1,cmm="Init");
-plot(ufin,wait=1,cmm="Fit");
-plot(ufin,u,wait=1,cmm="U et son fit");
