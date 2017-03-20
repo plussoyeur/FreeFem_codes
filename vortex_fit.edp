@@ -36,7 +36,7 @@ restartloadint(u,"/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D
 BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
 
 // plot initial solution
-//plot(umod, wait=1, cmm="Solution initial BEC");
+plot(umod, wait=1, cmm="Solution initial BEC");
 
 // Compute distance from center
 Ph dist = sqrt(x^2+y^2);
@@ -92,23 +92,25 @@ for(int j = 0; j < lm.n; j++){
   // Restrict mesh by maximizing gradient
   //********************************************************************************
   if(rG < distmax*.75){ //if not to close from border
-    if(abs(ampl) > 0.0001){ //seems deep enough to be a vortex
+ 
 
-      varf vbord(u,v) = on(-1,u=uj); // Define varf to extract values of uj on the border
-      real[int] vb = vbord(0,Vhj,tgv=1); // Stores these values in an array
-      vb = vb ? vb : 10^8; // If inside the truncated mesh : 0 -> 10⁸
-      int whereminborder = vb.imin; // Find min on the border
-      real xminborder = Thj(whereminborder).x; // x coord of this min
-      real yminborder = Thj(whereminborder).y; // y coord of this min
+    varf vbord(u,v) = on(-1,u=uj); // Define varf to extract values of uj on the border
+    real[int] vb = vbord(0,Vhj,tgv=1); // Stores these values in an array
+    vb = vb ? vb : 10^8; // If inside the truncated mesh : 0 -> 10⁸
+    int whereminborder = vb.imin; // Find min on the border
+    real xminborder = Thj(whereminborder).x; // x coord of this min
+    real yminborder = Thj(whereminborder).y; // y coord of this min
       
-      real radiusminborder = sqrt((xminborder-xjG)^2 + (yminborder-yjG)^2); // Distance from the center of the mesh to the min on border
+    real radiusminborder = sqrt((xminborder-xjG)^2 + (yminborder-yjG)^2); // Distance from the center of the mesh to the min on border
       
-      // Vhj rfromminborder = sqrt( (x-xminborder)^2 + (y-yminborder)^2 );
-      // Phj rfromvertexcenter = sqrt( (x-xjG)^2 + (y-yjG)^2 );
-      // plot(rfromminborder, wait=1, cmm = "Dist from min on border");
-      // plot(rfromvertexcenter, wait=1, cmm = "Dist from vertex center");
-      // plot(uj, wait = 1, cmm = "uj");
+    // Vhj rfromminborder = sqrt( (x-xminborder)^2 + (y-yminborder)^2 );
+    // Phj rfromvertexcenter = sqrt( (x-xjG)^2 + (y-yjG)^2 );
+    // plot(rfromminborder, wait=1, cmm = "Dist from min on border");
+    // plot(rfromvertexcenter, wait=1, cmm = "Dist from vertex center");
+    // plot(uj, wait = 1, cmm = "uj");
 
+    if(Thj.nt > 20){ // Eliminate some parasites min
+	
       mesh Thjj = trunc(Thj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .8*radiusminborder), label = -2 ); // Trunc truncated mesh
       // Plot truncated mesh
       string titletruncmesh = "Truncated mesh for " + j + "th minimum";
@@ -306,12 +308,16 @@ for(int j = 0; j < lm.n; j++){
       real epsilon = 0.00000000001;
       real R = ampl;
       real offset = ujj[].min;
-      
+
+      // mesh Thjjj = trunc(Thjj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .35*radiusminborder), label = -3 );
+      // fespace Vhjjj(Thjjj,P1);
+      // Vhjjj ujjj = ujj;
+	
       varf vbord2(uh,vh) = on(-2,uh=ujj);
       real[int] vb2 = vbord2(0,Vhjj,tgv=1);
       vb2 = vb2 ? vb2 : 10^8;
       cout << "Min border : " << vb2.min << endl;
-      real minborder = vb2.min-.01;
+      real minborder = .5*vb2.min;
       real val = 2*minborder^2/R^2/(1-minborder^2/R^2);
 
       real[int,int] M(3,3);
@@ -338,9 +344,15 @@ for(int j = 0; j < lm.n; j++){
       SM(2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^2  )*val;
 
       ionut = M*SM;
-            
+
+        
+      //ionut = .5*ionut;
+	
+	
       ionutinit = ionut;
 
+
+	
       func r2a = (x-xjG)^2;
       func r2b = 2*(x-xjG)*(y-yjG);
       func r2c = (y-yjG)^2;
@@ -524,8 +536,10 @@ for(int j = 0; j < lm.n; j++){
 
       // BFGS
       //BFGS(Jionut,DJionut,ionut,eps=1.e-15,nbiter=30,nbiterline=40);
-      IPOPT(Jionut,DJionut,ionut);
-      
+      bool vr;
+      vr = IPOPT(Jionut,DJionut,ionut);
+      cout << "Bool : " << vr << endl;
+	
       // Result
       func ri2f = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
       func fionutf = offset + R*sqrt(ri2f)/sqrt(2+ri2f);
@@ -542,8 +556,22 @@ for(int j = 0; j < lm.n; j++){
       cout << "Ionut init : " << ionutinit << endl;
       cout << "Ionut after BFGS : " << ionut << endl;
 
+      
 
-
+      
+      if(vr){
+	Vh baryx = floor(15*(x-xjG));
+	Vh baryy = floor(15*(y-yjG));
+	baryx[] = baryx[] ? 0 : 1;
+	baryy[] = baryy[] ? 0 : 1;
+	string pltitle = "Where is the vortex center : " + j ;
+	plot(umod,baryx,baryy,wait=1,cmm=pltitle);
+	plot(umod, wait=1);
+	plot(ujj,wait=1,cmm="Ujj on Thjj");
+	plot(gai,wait=1,cmm="Initial guess");
+	plot(ga,wait=1,cmm="Final fit");
+	plot(ga,ujj,wait=1,cmm="Both");
+      }
       
       //********************************************************************************
       real normbeforeipopt = int2d(Thjj)( (ujj-gai)^2 );
@@ -556,10 +584,9 @@ for(int j = 0; j < lm.n; j++){
       cout << endl;
       cout << endl;
       cout << "********************************" << endl;
-      cout << "End BFGS" << endl;
+      cout << "End IPOPT" << endl;
       cout << "********************************" << endl;
       //********************************************************************************
-
 
     }
   }
