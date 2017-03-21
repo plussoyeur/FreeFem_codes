@@ -19,7 +19,6 @@ real ITER0=0.;
 
 mesh Th = readmesh("BEC_2D-Classical-N-140000-Omega-1000_iter_00301.msh");
 
-
 plot(Th, wait=1, cmm="Initial mesh");
 
 fespace Vh (Th,P1);

@@ -60,7 +60,7 @@ int size = 0;
 // Loop over each basin of attraction
 //**************************************************
 for(int j = 0; j < lm.n; j++){
-  cout << "Nous sommes a l'iteration : " << j << " / " << lm.n << endl;
+  //cout << "Nous sommes a l'iteration : " << j << " / " << lm.n << endl;
   
   // Trunc mesh -> reduce to one basin of attraction
   mesh Thj = trunc(Th, floor(r)==j, label = -1); // take the jth minimum
