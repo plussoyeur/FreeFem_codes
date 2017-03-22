@@ -1,5 +1,4 @@
 // Program to fit vortex from a pre-computed simulation
-load "Element_P4";
 load "iovtk";
 load "ff-Ipopt";
 load "gsl";
@@ -8,25 +7,31 @@ load "isoline";
 load "BEC";
 load "fflapack"
 
-ofstream fout("output.echo",append);
+//===============================================================
+// Boolean for verbosity
+//===============================================================
+bool fplot = 0; //minimum plot (initial mesh and solution, mesh for vortex after stats)
+bool splot = 0; //plot at each iteration (truncated mesh, solution, fit)
+
 
 //===============================================================
 // load functions and mesh
 //===============================================================
 
 include "BEC_2D_Macros.idp";
+ofstream fout("output.echo",append);
 real ITER0=0.;
 
 mesh Th = readmesh("BEC_2D-Classical-N-140000-Omega-1000_iter_00301.msh");
 
-plot(Th, wait=1, cmm="Initial mesh");
+if(fplot) plot(Th, wait=1, cmm="Initial mesh");
 
 fespace Vh (Th,P1);
 fespace Ph (Th,P0);
 
 Vh<complex> u;//, uconj;
 Vh          rho; // densite
-real        Normu; // norm of the solution \int(u^2)
+
 
 // Load solution
 restartload(u,"BEC_2D-Classical-N-140000-Omega-1000_iter_00301.rst",ITER0);
@@ -35,8 +40,9 @@ restartload(u,"BEC_2D-Classical-N-140000-Omega-1000_iter_00301.rst",ITER0);
 //BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
 rho = abs(u)^2;
 
+
 // plot initial solution
-plot(rho, wait=1, cmm="Solution initial BEC");
+if(fplot) plot(rho, wait=1, cmm="Solution initial BEC");
 
 // Compute distance from center
 Ph dist = sqrt(x^2+y^2);
@@ -57,7 +63,7 @@ Ph r;
 int[int] lm=findalllocalmin(Th,rho[],r[]);
 
 // Plot region matching basins of attraction
-plot(r, fill=1, wait=1,  cmm="Basins of attraction");
+if(fplot) plot(r, fill=1, wait=1,  cmm="Basins of attraction");
 
 // Variables
 real [int,int] stats(lm.n,4);
@@ -151,34 +157,27 @@ for(int j = 0; j < lm.n; j++){
       
       // Ionut functionnal
       func real Jionut(real[int] & ionut){
-      	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      	ion = ionut;
       	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
       	func fionut = offset + R*(ri2)/(1+ri2);
-      	Vhjj vfionut = fionut;
-      	real s = int2d(Thjj)(0.5*abs(vfionut-ujj)^2);
+      	real s = int2d(Thjj)(0.5*abs(fionut-ujj)^2);
       	return s;
       }
 
       // Ionut functionnal derivative
       func real[int] DJionut(real [int] & ionut){
-      	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      	ion = ionut;
       	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
       	func fionut = offset + R*(ri2)/(1+ri2);
-      	Vhjj vfionut = fionut;
   
-      	func fa = r2a*R/((1+ri2)^2);
-      	Vhjj vfa = fa;
-
+     	func fa = r2a*R/((1+ri2)^2);
       	func fb = r2b*R/((1+ri2)^2);
-      	Vhjj vfb = fb;
-
       	func fc = r2c*R/((1+ri2)^2);
-      	Vhjj vfc = fc;
   
       	real[int] res(3);
-      	res[0] = int2d(Thjj)( (vfionut-ujj)*vfa  );
-      	res[1] = int2d(Thjj)( (vfionut-ujj)*vfb  );
-      	res[2] = int2d(Thjj)( (vfionut-ujj)*vfc  );
+      	res[0] = int2d(Thjj)( (fionut-ujj)*fa  );
+      	res[1] = int2d(Thjj)( (fionut-ujj)*fb  );
+      	res[2] = int2d(Thjj)( (fionut-ujj)*fc  );
 
       	return res;
   
@@ -209,11 +208,49 @@ for(int j = 0; j < lm.n; j++){
 
       //********************************************************************************
 
-      
-      if(vr){
+      //********************************************************************************
+      // If user wants plots to be displayed
+      if(splot){
+        Phj wherej = 1;
+	Ph where = wherej;
+	string  titlewhere = "Vortex " + j;
+	plot(where,fill=1,wait=1,cmm=titlewhere);
+	string titletruncmesh = "Truncated mesh for " + j + "th minimum";
+	plot(Thj, wait=1, cmm= titletruncmesh);
+	plot(Thjj, wait = 1, cmm = "New truncated mesh"); // Plot new mesh
+	plot(ujj, wait=1, cmm = "Solution of the GPE on the truncated mesh"); // Plot the restricted solution on the truncated mesh
+	// Plot initial test function
+	func ri2i = ionutinit[0]*(x-xjG)^2+2*ionutinit[1]*(x-xjG)*(y-yjG)+ionutinit[2]*(y-yjG)^2;
+	func fionuti = offset + R*(ri2i)/(1+ri2i);
+	Vhjj gai = fionuti;
+	plot(gai,wait=1,cmm = "Initial test function for the fit || Ionut");
+	// Result of the fitting
 	func ri2f = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
 	func fionutf = offset + R*(ri2f)/(1+ri2f);
 	Vhjj ga = fionutf;
+	plot(ga, wait=1, cmm="Final fit");
+	plot(ga,ujj,wait=1,cmm = "Display of uj and its fit");
+	Vhjj diff = abs( (ga-ujj) / ujj);
+	plot(diff,wait=1,cmm = "Difference");
+	// Norm
+	real normbeforeipopt = int2d(Thjj)( (ujj-gai)^2 );
+	real normafteripopt = int2d(Thjj)( (ujj-ga)^2 );
+	cout << "Norm 2 before ipopt : " << normbeforeipopt << endl;
+	cout << "Norm 2 after ipopt : " << normafteripopt << endl;
+      }
+
+
+
+      //********************************************************************************
+
+
+      
+      //********************************************************************************
+      // If Ipopt did not converge
+      if(vr){
+	func ri2ff = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
+	func fionutff = offset + R*(ri2ff)/(1+ri2ff);
+	Vhjj ga = fionutff;
 	Vh baryx = floor(15*(x-xjG));
 	Vh baryy = floor(15*(y-yjG));
 	baryx[] = baryx[] ? 0 : 1;
@@ -225,7 +262,7 @@ for(int j = 0; j < lm.n; j++){
 	plot(ga,wait=1,cmm="Final fit");
 	plot(ga,ujj,wait=1,cmm="Both");
 	Vhjj diff = abs( (ga-ujj) / ujj);
-      plot(diff,wait=1,cmm = "Difference");
+	plot(diff,wait=1,cmm = "Difference");
       }
       
       //********************************************************************************
@@ -252,8 +289,6 @@ for(int j = 0; j < lm.n; j++){
       stats(size,2) = eccentricity;
       stats(size,3) = sharpness;
 
-
-
       size++;
       //*******************************************************************************
 
@@ -268,18 +303,12 @@ yy.resize(size);
 stats.resize(size,4);
 
 mesh Thv = triangulate(xx,yy);
-plot(Thv, wait=1);
-plot(Thv, rho, wait=1);
+if(fplot) plot(Thv, wait=1);
+if(fplot) plot(Thv, rho, wait=1);
 cout << "Number of vertex : " << Thv.nv << endl;
 
-cout << stats << endl;
 
 {
-ofstream datastats("stats.dat");
-for(int i1 = 0; i1 < size; i1++){
-  for(int i2 = 0; i2 < 4; i2++){
-    datastats << stats(i1,i2) << "  "; 
-  }
-  datastats << endl;
- }
+  ofstream datastats("stats.dat");
+  datastats << stats << endl;
 }
