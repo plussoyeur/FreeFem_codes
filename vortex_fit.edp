@@ -24,18 +24,19 @@ plot(Th, wait=1, cmm="Initial mesh");
 fespace Vh (Th,P1);
 fespace Ph (Th,P0);
 
-Vh<complex> u, uconj;
-Vh          ur, ui, umod, argu,u0; // real, imag parts and mod of the solution
+Vh<complex> u;//, uconj;
+Vh          rho; // densite
 real        Normu; // norm of the solution \int(u^2)
 
 // Load solution
-restartloadint(u,"/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D-Classical-N-140000-Omega-1000_iter_00301","/home/plussoyeur/Documents/Stage_FreeFem/Freefem_github/BEC_2D-Classical-N-140000-Omega-1000_iter_00301",ITER0);
+restartload(u,"BEC_2D-Classical-N-140000-Omega-1000_iter_00301.rst",ITER0);
 
 // Normalize solution (should already be ok)
-BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
+//BECnormalize(Th,u,Normu,ur,ui,umod,"Initial cond : ",fout);
+rho = abs(u)^2;
 
 // plot initial solution
-plot(umod, wait=1, cmm="Solution initial BEC");
+plot(rho, wait=1, cmm="Solution initial BEC");
 
 // Compute distance from center
 Ph dist = sqrt(x^2+y^2);
@@ -53,7 +54,7 @@ Ph r;
 //**************************************************
 // lm stores vertex ind where min is reached;
 // r attributes vertex to its jth minimum
-int[int] lm=findalllocalmin(Th,umod[],r[]);
+int[int] lm=findalllocalmin(Th,rho[],r[]);
 
 // Plot region matching basins of attraction
 plot(r, fill=1, wait=1,  cmm="Basins of attraction");
@@ -76,7 +77,7 @@ for(int j = 0; j < lm.n; j++){
   fespace Phj(Thj,P0);
 
   // Restrict GPE solution to the truncated mesh
-  Vhj uj = umod;
+  Vhj uj = rho;
 
   // Compute useful parameters from truncated mesh
   int globalindmin = lm[j]; //ind of min on the global mesh
@@ -84,31 +85,32 @@ for(int j = 0; j < lm.n; j++){
   real yjG = Th(globalindmin).y; // y coord for the min
   real rG = sqrt(xjG^2+yjG^2); //dist from center of initial mesh
 
-  real ampl = uj[].max - uj[].min;
-  real H = uj[].max;
+  //real ampl = uj[].max - uj[].min;
+  //real H = uj[].max;
   
   //********************************************************************************
   // Restrict mesh by maximizing gradient
   //********************************************************************************
   if(rG < distmax*.75){ //if not to close from border
  
-
-    varf vbord(u,v) = on(-1,u=uj); // Define varf to extract values of uj on the border
-    real[int] vb = vbord(0,Vhj,tgv=1); // Stores these values in an array
-    vb = vb ? vb : 10^8; // If inside the truncated mesh : 0 -> 10⁸
-    int whereminborder = vb.imin; // Find min on the border
-    real xminborder = Thj(whereminborder).x; // x coord of this min
-    real yminborder = Thj(whereminborder).y; // y coord of this min
+   if(Thj.nt > 20){ // Eliminate some parasites min
+     
+     varf vbord(u,v) = on(-1,u=uj); // Define varf to extract values of uj on the border
+     real[int] vb = vbord(0,Vhj,tgv=1); // Stores these values in an array
+     vb = vb ? vb : 10^8; // If inside the truncated mesh : 0 -> 10⁸
+     int whereminborder = vb.imin; // Find min on the border
+     real xminborder = Thj(whereminborder).x; // x coord of this min
+     real yminborder = Thj(whereminborder).y; // y coord of this min
       
-    real radiusminborder = sqrt((xminborder-xjG)^2 + (yminborder-yjG)^2); // Distance from the center of the mesh to the min on border
+     real radiusminborder = sqrt((xminborder-xjG)^2 + (yminborder-yjG)^2); // Distance from the center of the mesh to the min on border
       
-    // Vhj rfromminborder = sqrt( (x-xminborder)^2 + (y-yminborder)^2 );
-    // Phj rfromvertexcenter = sqrt( (x-xjG)^2 + (y-yjG)^2 );
-    // plot(rfromminborder, wait=1, cmm = "Dist from min on border");
-    // plot(rfromvertexcenter, wait=1, cmm = "Dist from vertex center");
-    // plot(uj, wait = 1, cmm = "uj");
+     // Vhj rfromminborder = sqrt( (x-xminborder)^2 + (y-yminborder)^2 );
+     // Phj rfromvertexcenter = sqrt( (x-xjG)^2 + (y-yjG)^2 );
+     // plot(rfromminborder, wait=1, cmm = "Dist from min on border");
+     // plot(rfromvertexcenter, wait=1, cmm = "Dist from vertex center");
+     // plot(uj, wait = 1, cmm = "uj");
 
-    if(Thj.nt > 20){ // Eliminate some parasites min
+ 
 	
       mesh Thjj = trunc(Thj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .8*radiusminborder), label = -2 ); // Trunc truncated mesh
       // Plot truncated mesh
@@ -298,14 +300,98 @@ for(int j = 0; j < lm.n; j++){
       // //********************************************************************************
 
 
+      // //********************************************************************************
+      // // GAUSSIAN FIT
+  
+      // // Parameters
+      // real[int] a(3);
+      // real[int] alpha(3), alphainit(3);
+      // real R = ujj[].max - ujj[].min;
+      // real offset = ujj[].max;
+
+      // varf vbord2(uh,vh) = on(-2,uh=ujj);
+      // real[int] vb2 = vbord2(0,Vhjj,tgv=1);
+      // vb2 = vb2 ? vb2 : 10^8;
+      // cout << "Min border : " << vb2.min << endl;
+      // real minborder = .9*vb2.min;
+      // real val = sqrt(log(R/(offset-minborder)));
+
+      // real[int,int] M(3,3);
+      // M(0,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^4  );
+      // M(0,1) = int1d(Thjj,levelset=ujj-minborder)( 2*(x-xjG)^3*(y-yjG)  );
+      // M(0,2) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2*(y-yjG)^2  );
+      // M(1,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^3*(y-yjG)  );
+      // M(1,1) = int1d(Thjj,levelset=ujj-minborder)( 2*(x-xjG)^2*(y-yjG)^2  );
+      // M(1,2) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)*(y-yjG)^3 );
+      // M(2,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2*(y-yjG)^2  );
+      // M(2,1) = int1d(Thjj,levelset=ujj-minborder)( 2*(y-yjG)^3*(x-xjG)  );
+      // M(2,2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^4  );
+
+
+      // //cout << "M avant inv : " << M << endl;
+     
+      // inv(M);
+
+      // //cout << "M apres inv : " << M << endl;
+
+      // real[int] SM(3);
+      // SM(0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2  )*val;
+      // SM(1) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)*(y-yjG)  )*val;
+      // SM(2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^2  )*val;
+
+      // alpha= M*SM;
+	
+      // alphainit = alpha;
+	
+      // func r2a = (x-xjG)^2;
+      // func r2b = 2*(x-xjG)*(y-yjG);
+      // func r2c = (y-yjG)^2;
+
       
+
+      // // Construct gaussian functionnal
+      // func real Jgauss(real[int] & alpha){
+      // 	for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
+      // 	func ri2 = a[0]*(x-xjG)^2+2*a[1]*(x-xjG)*(y-yjG)+a[2]*(y-yjG)^2;
+      // 	func gaf = offset - R*exp(-ri2);
+      // 	Vhjj ga = gaf;
+      // 	real s = int2d(Thjj)(.5*abs(ga-ujj)^2);
+      // 	return s;
+      // }
+
+      // // Construct gaussian functionnal derivative
+      // func real[int] DJgauss(real[int] & alpha){
+      // 	for(int i = 0; i < alpha.n; i++) a[i] = alpha[i];
+      // 	func ri2 = a[0]*(x-xjG)^2+2*a[1]*(x-xjG)*(y-yjG)+a[2]*(y-yjG)^2;
+      // 	func gaf = offset - R*exp(-ri2);
+      // 	Vhjj ga = gaf;
+
+      // 	func dgaf0 = r2a*R*exp(-ri2);
+      // 	Vh dga0 = dgaf0;
+
+      // 	func dgaf1 = r2b*R*exp(-ri2);
+      // 	Vh dga1 = dgaf0;
+
+      // 	func dgaf2 = r2b*R*exp(-ri2);
+      // 	Vh dga2 = dgaf2;
+
+
+      // 	real[int] res(3);
+      // 	res(0) = int2d(Thjj)( (ga-ujj)*dga0 );
+      // 	res(1) = int2d(Thjj)( (ga-ujj)*dga1 );
+      // 	res(2) = int2d(Thjj)( (ga-ujj)*dga2 );
+
+      // 	return res;
+      // }
+
+      
+      //********************************************************************************
 
       //********************************************************************************
       // IONUT FIT
       real[int] ionut(3), ionutinit(3);
       real[int] ion(3);
-      real epsilon = 0.00000000001;
-      real R = ampl;
+      real R = uj[].max - uj[].min;
       real offset = ujj[].min;
 
       // mesh Thjjj = trunc(Thjj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .35*radiusminborder), label = -3 );
@@ -317,7 +403,7 @@ for(int j = 0; j < lm.n; j++){
       vb2 = vb2 ? vb2 : 10^8;
       cout << "Min border : " << vb2.min << endl;
       real minborder = .5*vb2.min;
-      real val = 2*minborder^2/R^2/(1-minborder^2/R^2);
+      real val = (minborder-offset)/(R-minborder+offset);
 
       real[int,int] M(3,3);
       M(0,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^4  );
@@ -343,14 +429,8 @@ for(int j = 0; j < lm.n; j++){
       SM(2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^2  )*val;
 
       ionut = M*SM;
-
-        
-      //ionut = .5*ionut;
-	
 	
       ionutinit = ionut;
-
-
 	
       func r2a = (x-xjG)^2;
       func r2b = 2*(x-xjG)*(y-yjG);
@@ -358,54 +438,54 @@ for(int j = 0; j < lm.n; j++){
       
       // Ionut functionnal
       func real Jionut(real[int] & ionut){
-	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
-	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
-	func fionut = offset + R*sqrt(ri2+epsilon)/sqrt(2+ri2+epsilon);
-	Vhjj vfionut = fionut;
-	real s = int2d(Thjj)(0.5*abs(vfionut-ujj)^2);
-	return s;
+      	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
+      	func fionut = offset + R*(ri2)/(1+ri2);
+      	Vhjj vfionut = fionut;
+      	real s = int2d(Thjj)(0.5*abs(vfionut-ujj)^2);
+      	return s;
       }
 
       // Ionut functionnal derivative
       func real[int] DJionut(real [int] & ionut){
-	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
-	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
-	func fionut = offset + R*sqrt(ri2+epsilon)/sqrt(2+ri2+epsilon);
-	Vhjj vfionut = fionut;
+      	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
+      	func fionut = offset + R*(ri2)/(1+ri2);
+      	Vhjj vfionut = fionut;
   
-	func fa = r2a*1/(sqrt(ri2+epsilon)*(1+ri2+epsilon)^(3/2));
-	Vhjj vfa = fa;
+      	func fa = r2a*R/((1+ri2)^2);
+      	Vhjj vfa = fa;
 
-	func fb = r2b*1/(sqrt(ri2+epsilon)*(1+ri2+epsilon)^(3/2));
-	Vhjj vfb = fb;
+      	func fb = r2b*R/((1+ri2)^2);
+      	Vhjj vfb = fb;
 
-	func fc = r2c*1/(sqrt(ri2+epsilon)*(1+ri2+epsilon)^(3/2));
-	Vhjj vfc = fc;
+      	func fc = r2c*R/((1+ri2)^2);
+      	Vhjj vfc = fc;
   
-	real[int] res(3);
-	res[0] = int2d(Thjj)( (vfionut-ujj)*vfa  );
-	res[1] = int2d(Thjj)( (vfionut-ujj)*vfb  );
-	res[2] = int2d(Thjj)( (vfionut-ujj)*vfc  );
+      	real[int] res(3);
+      	res[0] = int2d(Thjj)( (vfionut-ujj)*vfa  );
+      	res[1] = int2d(Thjj)( (vfionut-ujj)*vfb  );
+      	res[2] = int2d(Thjj)( (vfionut-ujj)*vfc  );
 
-	return res;
+      	return res;
   
       }
 
       
-      //********************************************************************************
+      // //********************************************************************************
 
 
 
       
       //********************************************************************************
-      // Fit using BFGS
+      // Fit using Ipopt
       cout << "********************************" << endl;
-      cout << "Start BFGS" << endl;
+      cout << "Start Ipopt" << endl;
       cout << "********************************" << endl;
       cout << endl;
       cout << endl;
 
-      cout << "Hauteur : " << ampl << endl;
+      cout << "Hauteur : " << R << endl;
       cout << "Distance du centre : " << rG << "    pour l'iteration " << j << endl;
   
 
@@ -416,29 +496,39 @@ for(int j = 0; j < lm.n; j++){
       // cout << endl;
       // cout << endl;
       // // Display initial starting parameter
-      // cout << "Alpha init : " << alpha << endl;
+      // cout << "Alpha init : " << alphainit<< endl;
       // cout << endl;
       // cout << endl;
-
+      
       // // Initial test function
-      // func gafi = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
-      // Vhjj gai = gafi;
+      // func ri2i = alphainit[0]*(x-xjG)^2+2*alphainit[1]*(x-xjG)*(y-yjG)+alphainit[2]*(y-yjG)^2;
+      // func gaussi = offset - R*exp(-ri2i);
+      // Vhjj gai = gaussi;
 
       // // Plot initial test function
       // plot(gai,wait=1,cmm = "Initial test function for the fit || Gaussian");
 
       // // BFGS
-      // BFGS(Jgauss,DJgauss,alpha,eps=1.e-6,nbiter=15,nbiterline=20); // Gaussian
-
+      // //BFGS(Jionut,DJionut,ionut,eps=1.e-15,nbiter=30,nbiterline=40);
+      // bool vr;
+      // vr = IPOPT(Jgauss,DJgauss,alpha);
+      // cout << "Bool : " << vr << endl;
+	
       // // Result
-      // func gaf = alpha[5] + alpha[0]*exp(-(x-alpha[1])^2/(2*alpha[2]^2))*exp(-(y-alpha[3])^2/(2*alpha[4]^2));
-      // Vhjj ga = gaf;
+      // func ri2f = alpha[0]*(x-xjG)^2+2*alpha[1]*(x-xjG)*(y-yjG)+alpha[2]*(y-yjG)^2;
+      // func gaussf = offset - R*exp(-ri2f);
+      // Vhjj ga = gaussf;
 
+      // plot(ga, wait=1, cmm="Final fit");
       // plot(ga,ujj,wait=1,cmm = "Display of uj and its fit");
 
+      // Vhjj diff = abs( (ga-ujj) / ujj);
+      // plot(diff,wait=1,cmm = "Difference");
+      
       // cout << endl;
       // cout << "****************************" << endl;
-      // cout << "Alpha after BFGS : " << alpha << endl; // Gauss
+      // cout << "Alpha init : " << alphainit << endl;
+      // cout << "Alpha after BFGS : " << alpha << endl;
 
 
       // //**********************************
@@ -527,7 +617,7 @@ for(int j = 0; j < lm.n; j++){
       
       // Initial test function
       func ri2i = ionutinit[0]*(x-xjG)^2+2*ionutinit[1]*(x-xjG)*(y-yjG)+ionutinit[2]*(y-yjG)^2;
-      func fionuti = R*sqrt(ri2i)/sqrt(2+ri2i);
+      func fionuti = offset + R*(ri2i)/(1+ri2i);
       Vhjj gai = fionuti;
 
       // Plot initial test function
@@ -541,7 +631,7 @@ for(int j = 0; j < lm.n; j++){
 	
       // Result
       func ri2f = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
-      func fionutf = offset + R*sqrt(ri2f)/sqrt(2+ri2f);
+      func fionutf = offset + R*(ri2f)/(1+ri2f);
       Vhjj ga = fionutf;
 
       plot(ga, wait=1, cmm="Final fit");
@@ -555,7 +645,7 @@ for(int j = 0; j < lm.n; j++){
       cout << "Ionut init : " << ionutinit << endl;
       cout << "Ionut after BFGS : " << ionut << endl;
 
-      
+      //********************************************************************************
 
       
       if(vr){
@@ -564,8 +654,8 @@ for(int j = 0; j < lm.n; j++){
 	baryx[] = baryx[] ? 0 : 1;
 	baryy[] = baryy[] ? 0 : 1;
 	string pltitle = "Where is the vortex center : " + j ;
-	plot(umod,baryx,baryy,wait=1,cmm=pltitle);
-	plot(umod, wait=1);
+	plot(rho,baryx,baryy,wait=1,cmm=pltitle);
+	plot(rho, wait=1);
 	plot(ujj,wait=1,cmm="Ujj on Thjj");
 	plot(gai,wait=1,cmm="Initial guess");
 	plot(ga,wait=1,cmm="Final fit");
@@ -577,6 +667,7 @@ for(int j = 0; j < lm.n; j++){
       real normafteripopt = int2d(Thjj)( (ujj-ga)^2 );
       
       cout << "****************************" << endl;
+      cout << "Value : " << val << endl;
       cout << "Norm 2 before ipopt : " << normbeforeipopt << endl;
       cout << "Norm 2 after ipopt : " << normafteripopt << endl;
        
