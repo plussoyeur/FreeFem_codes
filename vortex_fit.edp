@@ -101,6 +101,7 @@ for(int j = 0; j < lm.n; j++){
      int whereminborder = vb.imin; // Find min on the border
      real xminborder = Thj(whereminborder).x; // x coord of this min
      real yminborder = Thj(whereminborder).y; // y coord of this min
+     real minvb = vb.min;
       
      real radiusminborder = sqrt((xminborder-xjG)^2 + (yminborder-yjG)^2); // Distance from the center of the mesh to the min on border
       
@@ -387,17 +388,101 @@ for(int j = 0; j < lm.n; j++){
       
       //********************************************************************************
 
+      // //********************************************************************************
+      // // IONUT FIT
+      // real[int] ionut(3), ionutinit(3);
+      // real[int] ion(3);
+      // real R = uj[].max - uj[].min;
+      // real offset = ujj[].min;
+
+      // // mesh Thjjj = trunc(Thjj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .35*radiusminborder), label = -3 );
+      // // fespace Vhjjj(Thjjj,P1);
+      // // Vhjjj ujjj = ujj;
+	
+      // varf vbord2(uh,vh) = on(-2,uh=ujj);
+      // real[int] vb2 = vbord2(0,Vhjj,tgv=1);
+      // vb2 = vb2 ? vb2 : 10^8;
+      // cout << "Min border : " << vb2.min << endl;
+      // real minborder = .5*vb2.min;
+      // real val = (minborder-offset)/(R-minborder+offset);
+
+      // real[int,int] M(3,3);
+      // M(0,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^4  );
+      // M(0,1) = int1d(Thjj,levelset=ujj-minborder)( 2*(x-xjG)^3*(y-yjG)  );
+      // M(0,2) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2*(y-yjG)^2  );
+      // M(1,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^3*(y-yjG)  );
+      // M(1,1) = int1d(Thjj,levelset=ujj-minborder)( 2*(x-xjG)^2*(y-yjG)^2  );
+      // M(1,2) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)*(y-yjG)^3 );
+      // M(2,0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2*(y-yjG)^2  );
+      // M(2,1) = int1d(Thjj,levelset=ujj-minborder)( 2*(y-yjG)^3*(x-xjG)  );
+      // M(2,2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^4  );
+
+
+      // //cout << "M avant inv : " << M << endl;
+     
+      // inv(M);
+
+      // //cout << "M apres inv : " << M << endl;
+
+      // real[int] SM(3);
+      // SM(0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2  )*val;
+      // SM(1) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)*(y-yjG)  )*val;
+      // SM(2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^2  )*val;
+
+      // ionut = M*SM;
+	
+      // ionutinit = ionut;
+	
+      // func r2a = (x-xjG)^2;
+      // func r2b = 2*(x-xjG)*(y-yjG);
+      // func r2c = (y-yjG)^2;
+      
+      // // Ionut functionnal
+      // func real Jionut(real[int] & ionut){
+      // 	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      // 	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
+      // 	func fionut = offset + R*(ri2)/(1+ri2);
+      // 	Vhjj vfionut = fionut;
+      // 	real s = int2d(Thjj)(0.5*abs(vfionut-ujj)^2);
+      // 	return s;
+      // }
+
+      // // Ionut functionnal derivative
+      // func real[int] DJionut(real [int] & ionut){
+      // 	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      // 	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
+      // 	func fionut = offset + R*(ri2)/(1+ri2);
+      // 	Vhjj vfionut = fionut;
+  
+      // 	func fa = r2a*R/((1+ri2)^2);
+      // 	Vhjj vfa = fa;
+
+      // 	func fb = r2b*R/((1+ri2)^2);
+      // 	Vhjj vfb = fb;
+
+      // 	func fc = r2c*R/((1+ri2)^2);
+      // 	Vhjj vfc = fc;
+  
+      // 	real[int] res(3);
+      // 	res[0] = int2d(Thjj)( (vfionut-ujj)*vfa  );
+      // 	res[1] = int2d(Thjj)( (vfionut-ujj)*vfb  );
+      // 	res[2] = int2d(Thjj)( (vfionut-ujj)*vfc  );
+
+      // 	return res;
+  
+      // }
+
+      
+      // // //********************************************************************************
+
+
       //********************************************************************************
       // IONUT FIT
-      real[int] ionut(3), ionutinit(3);
-      real[int] ion(3);
+      real[int] ionut(5), ionutinit(5);
+      real[int] ion(5);
       real R = uj[].max - uj[].min;
       real offset = ujj[].min;
 
-      // mesh Thjjj = trunc(Thjj, (sqrt( (x-xjG)^2+(y-yjG)^2 ) < .35*radiusminborder), label = -3 );
-      // fespace Vhjjj(Thjjj,P1);
-      // Vhjjj ujjj = ujj;
-	
       varf vbord2(uh,vh) = on(-2,uh=ujj);
       real[int] vb2 = vbord2(0,Vhjj,tgv=1);
       vb2 = vb2 ? vb2 : 10^8;
@@ -426,10 +511,31 @@ for(int j = 0; j < lm.n; j++){
       real[int] SM(3);
       SM(0) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)^2  )*val;
       SM(1) = int1d(Thjj,levelset=ujj-minborder)( (x-xjG)*(y-yjG)  )*val;
-      SM(2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^2  )*val;
+      SM(2) = int1d(Thjj,levelset=ujj-minborder)( (y-yjG)^2  )*val;   
 
-      ionut = M*SM;
-	
+      
+      SM = M*SM;      
+      ionut[0] = SM[0];
+      ionut[1] = SM[1];
+      ionut[2] = SM[2];
+
+      real[int,int] M2(2,2);
+      M(0,0) = int1d(Thj,levelset=uj-minvb)( 1 );
+      M(0,1) = int1d(Thj,levelset=uj-minvb)( x^2+y^2 );
+      M(0,0) = int1d(Thj,levelset=uj-minvb)( x^2+y^2 );
+      M(0,0) = int1d(Thj,levelset=uj-minvb)( (x^2+y^2)^2 );
+
+      real[int] SM2(2);
+      SM2(0) = int1d(Thj,levelset=uj-minvb)( uj );
+      SM2(1) = int1d(Thj,levelset=uj-minvb)( (x^2+y^2)*uj );
+
+      inv(M2);
+
+      SM2 = M2*SM2;
+
+      ionut[3] = SM2[0];
+      ionut[4] = SM2[1];
+      
       ionutinit = ionut;
 	
       func r2a = (x-xjG)^2;
@@ -438,43 +544,39 @@ for(int j = 0; j < lm.n; j++){
       
       // Ionut functionnal
       func real Jionut(real[int] & ionut){
-      	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+        ion = ionut;
       	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
-      	func fionut = offset + R*(ri2)/(1+ri2);
-      	Vhjj vfionut = fionut;
-      	real s = int2d(Thjj)(0.5*abs(vfionut-ujj)^2);
+      	func fionut = offset + (ionut[3]+ionut[4]*ri2)*(ri2)/(1+ri2);
+      	real s = int2d(Thjj)(0.5*abs(fionut-ujj)^2);
       	return s;
       }
 
       // Ionut functionnal derivative
       func real[int] DJionut(real [int] & ionut){
-      	for(int i = 0; i < ionut.n; i++) ion[i] = ionut[i];
+      	ion = ionut;
       	func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
-      	func fionut = offset + R*(ri2)/(1+ri2);
-      	Vhjj vfionut = fionut;
-  
-      	func fa = r2a*R/((1+ri2)^2);
-      	Vhjj vfa = fa;
+      	func fionut = offset + (ionut[3]+ionut[4]*ri2)*(ri2)/(1+ri2);
 
-      	func fb = r2b*R/((1+ri2)^2);
-      	Vhjj vfb = fb;
-
-      	func fc = r2c*R/((1+ri2)^2);
-      	Vhjj vfc = fc;
-  
-      	real[int] res(3);
-      	res[0] = int2d(Thjj)( (vfionut-ujj)*vfa  );
-      	res[1] = int2d(Thjj)( (vfionut-ujj)*vfb  );
-      	res[2] = int2d(Thjj)( (vfionut-ujj)*vfc  );
-
+ 	func fa = r2a*(ionut[3]+ionut[4]*ri2)/((1+ri2)^2);
+      	func fb = r2b*(ionut[3]+ionut[4]*ri2)/((1+ri2)^2);
+   	func fc = r2c*(ionut[3]+ionut[4]*ri2)/((1+ri2)^2);
+	func f3 = ri2/(1+ri2);
+	func f4 = ri2^3/(1+ri2^3);
+	
+      	real[int] res(5);
+      	res[0] = int2d(Thjj)( (fionut-ujj)*fa  );
+      	res[1] = int2d(Thjj)( (fionut-ujj)*fb  );
+      	res[2] = int2d(Thjj)( (fionut-ujj)*fc  );
+	res[3] = int2d(Thjj)( (fionut-ujj)*f3  );
+	res[4] = int2d(Thjj)( (fionut-ujj)*f4  );
+	
       	return res;
   
       }
 
       
       // //********************************************************************************
-
-
+      
 
       
       //********************************************************************************
@@ -617,7 +719,7 @@ for(int j = 0; j < lm.n; j++){
       
       // Initial test function
       func ri2i = ionutinit[0]*(x-xjG)^2+2*ionutinit[1]*(x-xjG)*(y-yjG)+ionutinit[2]*(y-yjG)^2;
-      func fionuti = offset + R*(ri2i)/(1+ri2i);
+      func fionuti = offset + (ionutinit[3]+ionutinit[4]*ri2i)*(ri2i)/(1+ri2i);
       Vhjj gai = fionuti;
 
       // Plot initial test function
@@ -631,7 +733,7 @@ for(int j = 0; j < lm.n; j++){
 	
       // Result
       func ri2f = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
-      func fionutf = offset + R*(ri2f)/(1+ri2f);
+      func fionutf = offset + (ionut[3]+ionut[4]*ri2f)*(ri2f)/(1+ri2f);
       Vhjj ga = fionutf;
 
       plot(ga, wait=1, cmm="Final fit");

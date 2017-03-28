@@ -11,7 +11,7 @@ load "fflapack"
 // Boolean for verbosity
 //===============================================================
 bool fplot = 1; //minimum plot (initial mesh and solution, mesh for vortex after stats)
-bool splot = 0; //plot at each iteration (truncated mesh, solution, fit)
+bool splot = 1; //plot at each iteration (truncated mesh, solution, fit)
 
 
 //===============================================================
