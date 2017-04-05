@@ -1,0 +1,95 @@
+// Program to fit vortex from a pre-computed simulation
+
+//** Load packages
+load "ff-Ipopt"; //ipopt
+load "isoline"; //findalllocalmin
+load "BEC";
+load "pipe"; //BEC_2D_Macros.idp
+load "fflapack" //Used to fit the ellipse in BEC_fit_vortex.idp
+
+verbosity = 1;
+int displayplot = 8;
+
+//===============================================================
+// load functions and mesh
+//===============================================================
+
+// Required packages :
+//    BEC
+//    pipe
+
+// One can add mesh and solution (".rst") simply as argv
+//  following this order :
+//    argv[0] Freefem++, argv[1] file.edp
+//    argv[2] Mesh
+//    argv[3] Solution
+if(ARGV.n > 3 && ARGV.n < 4){cout << "You should enter your mesh and your solution" << endl;}
+
+include "BEC_2D_Macros.idp"; // Useful macro to load solutions
+
+real ITER0=0.;
+
+// Macro choice functionnal space : change here to adapt accordingly to your solution
+macro FSchoice P2//
+
+// Read initial mesh
+mesh Th = readmesh("BEC_2D-Classical-N-140000-Omega-1000_iter_00301.msh");
+if(ARGV.n > 3) {Th = readmesh(ARGV[2]);} // if user's mesh
+
+// Plot initial mesh
+if(displayplot > 5){plot(Th, wait=1, cmm="Initial mesh");}
+
+// Functionnal spaces
+fespace Vhh (Th,FSchoice);
+fespace Vh  (Th,P1);
+fespace Ph  (Th,P0);
+
+// Functions
+Vhh<complex> uhh;//, uconj;
+Vh<complex>  uh; 
+Vhh          u2; // densite
+Vh           rho,  umod;
+Vh           arguh;
+
+
+// Load solution
+if(ARGV.n > 3){restartload(uhh,ARGV[3],ITER0);} // if user's solution
+else{restartload(uhh,"BEC_2D-Classical-N-140000-Omega-1000_iter_00301.rst",ITER0);}
+
+// Functions
+uh = uhh;
+u2 = abs(uhh)^2;
+umod = abs(uhh);
+rho = u2;
+arguh = arg(uh);
+
+// Plot initial solution
+if(displayplot >= 2){plot(u2, wait=1, cmm="Solution from GPE to fit");}
+
+// Compute distance from center
+Ph dist = sqrt(x^2+y^2);
+real distmax = dist[].max;
+cout << "BEC radius : " << distmax << endl;
+
+
+//===============================================================
+// Call macros to fit the vortex
+//===============================================================
+Ph r, constantbyvortex;
+int[int] lm=findalllocalmin(Th,rho[],r[]);
+real[int,int] lmtilde(lm.n,1);
+lmtilde(:,0) = lm;
+
+
+// Plot basins of attractions
+if(displayplot > 5){plot(r,fill=1,wait=1);}
+
+// Macro used to check if the basin contains a vortex
+include "BEC_control_basins.idp"
+// Macro used to fit the background (instead of using Thomas-Fermi)
+include "BEC_fit_axibackground.idp"
+// Macro used to fit the vortex
+//include "BEC_fit_vortex.idp"
+
+
+
