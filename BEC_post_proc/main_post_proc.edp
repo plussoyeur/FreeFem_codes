@@ -77,9 +77,8 @@ cout << "BEC radius : " << distmax << endl;
 //===============================================================
 Ph r, constantbyvortex;
 int[int] lm=findalllocalmin(Th,rho[],r[]);
-real[int,int] lmtilde(lm.n,1);
-lmtilde(:,0) = lm;
-
+real[int] lmtilde(lm.n);
+real[int,int] lmtrue(lm.n,2);
 
 // Plot basins of attractions
 if(displayplot > 5){plot(r,fill=1,wait=1);}
@@ -89,7 +88,7 @@ include "BEC_control_basins.idp"
 // Macro used to fit the background (instead of using Thomas-Fermi)
 include "BEC_fit_axibackground.idp"
 // Macro used to fit the vortex
-//include "BEC_fit_vortex.idp"
+include "BEC_fit_vortex_gauss.idp"
 
 
 

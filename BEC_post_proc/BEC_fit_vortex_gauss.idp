@@ -47,19 +47,19 @@ macro fitvortex(Tmesh,density,localmin,regions){
     Vhjj rhojj = rhoj; /* Restrict function on this new mesh*/
 
     /*===============================================================
-      IONUT FIT : definition of functionnals and starting parameters
+      GAUSSIAN FIT : definition of functionnals and starting parameters
       ===============================================================*/
-    real[int] ionut(3), ionutinit(3);
-    real[int] ion(3);
-    real R = rhoj[].max - rhoj[].min;
-    real offset = rhojj[].min;
+    real[int] gauss(5), gaussinit(5); /*a,b,c,x0,y0*/
+    real[int] gausstilde(5);
+    
 	
     varf vbord2(uh,vh) = on(-2,uh=rhojj);
     real[int] vb2 = vbord2(0,Vhjj,tgv=1);
     vb2 = vb2 ? vb2 : 10^8;
     cout << "Min border : " << vb2.min << endl;
-    real minborder = .4*vb2.min;
-    real val = (minborder-offset)/(R-minborder+offset);
+    real minborder = .6*vb2.min;
+    real val = sqrt(abs(log(1-minborder)));
+    cout << "Val : " << val << endl;
     
     real[int,int] M(3,3);
     M(0,0) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^4  );
@@ -79,38 +79,44 @@ macro fitvortex(Tmesh,density,localmin,regions){
     SM(1) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)*(y-yjG)  )*val;
     SM(2) = int1d(Thjj,levelset=rhojj-minborder)( (y-yjG)^2  )*val;
 
-    ionut = M*SM;
-	
-    ionutinit = ionut;
-
-    real[int] test(4);
-    test(0:2) = ionut;
-    cout << "tes : " << test << endl;
+    gaussinit(0:2) = M*SM;
+    gaussinit(3) = xjG;
+    gaussinit(4) = yjG;
     
-    func r2a = (x-xjG)^2;
-    func r2b = 2*(x-xjG)*(y-yjG);
-    func r2c = (y-yjG)^2;
-
-    func ri2 = ion[0]*(x-xjG)^2+2*ion[1]*(x-xjG)*(y-yjG)+ion[2]*(y-yjG)^2;
-    func fionut = offset + R*(ri2)/(1+ri2);
-
-    func fa = r2a*R/((1+ri2)^2);
-    func fb = r2b*R/((1+ri2)^2);
-    func fc = r2c*R/((1+ri2)^2);
-      
-    /* Ionut functionnal*/
-    func real Jionut(real[int] & ionut){
-      ion = ionut;
-      return int2d(Thjj)(0.5*abs(fionut-rhojj)^2);
+    gausstilde = gaussinit;
+    gauss = gaussinit;
+    cout << "Gauss param init : " << gauss << endl;
+    
+    func ri2 = gauss[0]*(x-gauss[3])^2+2*gauss[1]*(x-gauss[3])*(y-gauss[4])+gauss[2]*(y-gauss[4])^2;
+    func fgauss = (1.-exp(ri2^2));
+    
+    func r2a = (x-gauss[3])^2;
+    func r2b = 2*(x-gauss[3])*(y-gauss[4]);
+    func r2c = (y-gauss[4])^2;
+    func r2x0 = -2*gauss[0]*(x-gauss[3])-2*gauss[1];
+    func r2y0 = -2*gauss[2]*(y-gauss[4])-2*gauss[1];
+    
+    func fa = -r2a*2*ri2*exp(ri2^2);
+    func fb = -r2b*2*ri2*exp(ri2^2);
+    func fc = -r2c*2*ri2*exp(ri2^2);
+    func fx0 = -r2x0*2*ri2*exp(ri2^2);
+    func fy0 = -r2y0*2*ri2*exp(ri2^2);
+    
+    /* Gaussian functionnal*/
+    func real Jgauss(real[int] & gausstilde){
+      gauss = gausstilde;
+      return int2d(Thjj)(0.5*abs(fgauss-rhojj)^2);
     }
 
-    /* Ionut functionnal derivative*/
-    func real[int] DJionut(real [int] & ionut){
-      ion = ionut;
-      real[int] res(3);
-      res[0] = int2d(Thjj)( (fionut-rhojj)*fa  );
-      res[1] = int2d(Thjj)( (fionut-rhojj)*fb  );
-      res[2] = int2d(Thjj)( (fionut-rhojj)*fc  );
+    /* Gaussian functionnal derivative*/
+    func real[int] DJgauss(real [int] & gausstilde){
+      gauss = gausstilde; 
+      real[int] res(5);
+      res[0] = int2d(Thjj)( (fgauss-rhojj)*fa  );
+      res[1] = int2d(Thjj)( (fgauss-rhojj)*fb  );
+      res[2] = int2d(Thjj)( (fgauss-rhojj)*fc  );
+      res[3] = int2d(Thjj)( (fgauss-rhojj)*fx0  );
+      res[4] = int2d(Thjj)( (fgauss-rhojj)*fy0  );
 
       return res;
   
@@ -125,65 +131,50 @@ macro fitvortex(Tmesh,density,localmin,regions){
     cout << endl;
     cout << endl;
 
-    /* Ipopt;*/
-    bool vr;
-    vr = IPOPT(Jionut,DJionut,ionut);
-    cout << "Ippot convergence : " << vr << endl;     
-    cout << endl;
-    cout << "****************************" << endl;
-    cout << "Ionut init : " << ionutinit << endl;
-    cout << "Ionut after BFGS : " << ionut << endl;
-
-    /* If user wants plots to be displayed*/
     if(displayplot > 5){
+      /* Where is the vortex on the global mesh*/
       Phj wherej = 1;
       Ph where = wherej;
       string  titlewhere = "Vortex " + j;
       plot(where,fill=1,wait=1,cmm=titlewhere);
-      string titletruncmesh = "Truncated mesh for " + j + "th minimum";
-      plot(Thj, wait=1, cmm= titletruncmesh);
+      /* Initial guess and solution of GPE */
+      plot(Thj, wait=1, cmm= "Frist truncated mesh");
       plot(Thjj, wait = 1, cmm = "New truncated mesh"); /* Plot new mesh*/
+      Vhjj r = ri2;
+      plot(r,wait=1);
       plot(rhojj, wait=1, cmm = "Solution of the GPE on the truncated mesh"); /*Plot the restricted solution on the truncated mesh*/
-      /* Plot initial test function*/
-      func ri2i = ionutinit[0]*(x-xjG)^2+2*ionutinit[1]*(x-xjG)*(y-yjG)+ionutinit[2]*(y-yjG)^2;
-      func fionuti = offset + R*(ri2i)/(1+ri2i);
-      Vhjj gai = fionuti;
-      plot(gai,wait=1,cmm = "Initial test function for the fit || Ionut");
+      Vhjj fgaussinit = fgauss;
+      plot(fgaussinit,wait=1,cmm="Initial guess for the Gaussian fit");
+      /* Norm*/
+      real normbeforeipopt = int2d(Thjj)( (rhojj-fgaussinit)^2 );
+      cout << "Norm 2 before ipopt : " << normbeforeipopt << endl;
+    }
+
+
+
+    
+    /* Ipopt;*/
+    bool vr;    
+    vr = IPOPT(Jgauss,DJgauss,gausstilde);
+    cout << "Ipopt convergence : " << vr << endl;     
+    cout << endl;
+    cout << "****************************" << endl;
+    cout << "Init gauss parameters : " << gaussinit << endl;
+    cout << "Gauss parameters after IPOPT : " << gausstilde << endl;
+
+    /* If user wants plots to be displayed*/
+    if(displayplot > 5){
       /* Result of the fitting*/
-      func ri2f = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
-      func fionutf = offset + R*(ri2f)/(1+ri2f);
-      Vhjj ga = fionutf;
-      plot(ga, wait=1, cmm="Final fit");
-      plot(ga,rhojj,wait=1,cmm = "Display of rhoj and its fit");
-      Vhjj diff = abs( (ga-rhojj) / rhojj);
+      gauss = gausstilde;
+      Vhjj fgaussfinal = fgauss;
+      plot(fgaussfinal, wait=1, cmm="Final fit");
+      plot(fgaussfinal,rhojj,wait=1,cmm = "Display of rhoj and its fit");
+      Vhjj diff = abs( (fgaussfinal-rhojj) / rhojj);
       plot(diff,wait=1,cmm = "Difference");
       /* Norm*/
-      real normbeforeipopt = int2d(Thjj)( (rhojj-gai)^2 );
-      real normafteripopt = int2d(Thjj)( (rhojj-ga)^2 );
-      cout << "Norm 2 before ipopt : " << normbeforeipopt << endl;
+      real normafteripopt = int2d(Thjj)( (rhojj-fgaussfinal)^2 );
       cout << "Norm 2 after ipopt : " << normafteripopt << endl;
-    }
-
-
-    /* If Ipopt did not converge*/
-    if(vr){
-      func ri2ff = ionut[0]*(x-xjG)^2+2*ionut[1]*(x-xjG)*(y-yjG)+ionut[2]*(y-yjG)^2;
-      func fionutff = offset + R*(ri2ff)/(1+ri2ff);
-      Vhjj ga = fionutff;
-      Vh baryx = floor(15*(x-xjG));
-      Vh baryy = floor(15*(y-yjG));
-      baryx[] = baryx[] ? 0 : 1;
-      baryy[] = baryy[] ? 0 : 1;
-      string pltitle = "Where is the vortex center : " + j ;
-      plot(rho,baryx,baryy,wait=1,cmm=pltitle);
-      plot(rho, wait=1);
-      plot(rhojj,wait=1,cmm="Ujj on Thjj");
-      plot(ga,wait=1,cmm="Final fit");
-      plot(ga,rhojj,wait=1,cmm="Both");
-      Vhjj diff = abs( (ga-rhojj) / rhojj);
-      plot(diff,wait=1,cmm = "Difference");
-    }
-      
+    }      
 
     cout << endl;
     cout << endl;
@@ -194,7 +185,7 @@ macro fitvortex(Tmesh,density,localmin,regions){
     /*===============================================================
        Stats
        ===============================================================*/
-    xx[size] = xjG;
+    /*xx[size] = xjG;
     yy[size] = yjG;
 
     real eigval1 = .5*(ionut[0]+ionut[2]+sqrt( (ionut[0]-ionut[2])^2 + 4*ionut[1]^2   )   );
@@ -208,11 +199,11 @@ macro fitvortex(Tmesh,density,localmin,regions){
     stats(size,2) = eccentricity;
     stats(size,3) = sharpness;
 
-    size++;      
+    size++;   */   
 
   }
 
-  xx.resize(size);
+  /*xx.resize(size);
   yy.resize(size);
 
   stats.resize(size,4);
@@ -226,7 +217,7 @@ macro fitvortex(Tmesh,density,localmin,regions){
   {
     ofstream datastats("stats.dat");
     datastats << stats << endl;
-  }
+    }*/
 
 }
 //EOM
