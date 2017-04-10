@@ -14,21 +14,27 @@ macro controlbasins(Tmesh,density,argument,localmin,regions)
     
     /* Trunc mesh -> reduce to one basin of attraction*/
     mesh Thtrunc = trunc(Tmesh, floor(regions) == j, label = -1); /* take the jth minimum */
+    plot(Thtrunc,wait=1);
     
     fespace Vhtrunc(Thtrunc, P1);
     Vhtrunc<complex> uhtrunc= argument;
     Vhtrunc          arguhtrunc = arg(uhtrunc);
+
+    for(int i = 0; i < arguhtrunc[].n; i++){
+      if(arguhtrunc[][i] < 0) arguhtrunc[][i] = arguhtrunc[][i] + 2*pi;
+    }
+    plot(arguhtrunc,wait=1,cmm="phase");
     /* Integrate wave fonction around the vortex */
     /* (-N.y*dx(arguhtrunc)+N.x*dy(arguhtrunc)) */
 
     complex vortexcharge = int1d(Thtrunc,-1)( 1./((x-xjG)+1i*(y-yjG)) *(-N.y + N.x *1i)/(2*pi) );
     complex vortexcharge2 = int1d(Thtrunc,-1)( (-N.y*dx(arguhtrunc)+N.x*dy(arguhtrunc)) *(-N.y + N.x *1i)/(2*pi) );
-    real vortexcharge3 = int2d(Thtrunc)(  dxy(arguh) - dyx(arguh) );
+    real vortexcharge3 = int1d(Thtrunc,-1)( -N.y*dx(arguhtrunc) + N.x*dy(arguhtrunc)  );
     
     string title = "Mesh : " + j + "   " + vortexcharge;
-    /*cout << "Test =  " << vortexcharge << endl;
-    cout << "Int =  " << vortexcharge2 << endl;
-    cout << "Int = " << vortexcharge3 << endl;*/
+    cout << "Test =  " << vortexcharge << endl;
+    /*cout << "Int =  " << vortexcharge2 << endl;*/
+    cout << "Int = " << vortexcharge3 << endl;
     /*if(abs(vortexcharge) < 20){plot(uhtrunc,wait=1,cmm=title);}*/
 
 
