@@ -1,4 +1,4 @@
-macro fitaxibackground(Tmesh, modwavefunction, regions)
+NewMacro fitaxibackground(Tmesh, modwavefunction, regions)
 {
   mesh Th1d = square(1000,1,[x*distmax,y]);
   mesh Thwithoutvortex = trunc(Th, abs(regions) < 0.5);
@@ -24,6 +24,6 @@ macro fitaxibackground(Tmesh, modwavefunction, regions)
   if(displayplot > 5){plot(rho,fill=1, wait=1, cmm = "rho normalised");}
 
 }
-//EOM
+EndMacro
 
 fitaxibackground(Th,umod,constantbyvortex);

@@ -1,4 +1,4 @@
-macro controlbasins(Tmesh,density,argument,localmin,regions)
+NewMacro controlbasins(Tmesh,density,argument,localmin,regions)
 {
   real cpu = clock();
   int k = 0;
@@ -14,27 +14,27 @@ macro controlbasins(Tmesh,density,argument,localmin,regions)
     
     /* Trunc mesh -> reduce to one basin of attraction*/
     mesh Thtrunc = trunc(Tmesh, floor(regions) == j, label = -1); /* take the jth minimum */
-    plot(Thtrunc,wait=1);
     
     fespace Vhtrunc(Thtrunc, P1);
     Vhtrunc<complex> uhtrunc= argument;
     Vhtrunc          arguhtrunc = arg(uhtrunc);
 
-    for(int i = 0; i < arguhtrunc[].n; i++){
-      if(arguhtrunc[][i] < 0) arguhtrunc[][i] = arguhtrunc[][i] + 2*pi;
-    }
-    plot(arguhtrunc,wait=1,cmm="phase");
     /* Integrate wave fonction around the vortex */
     /* (-N.y*dx(arguhtrunc)+N.x*dy(arguhtrunc)) */
 
+    Vhtrunc r = sqrt((x-xjG+0.00001)^2+(y-yjG+0.000001)^2);
+    Vhtrunc<complex> f = (x-1i*y)/(r^4);
+    Vhtrunc<complex> ri = x + 1i*y;
+    Vhtrunc argri = arg(ri);
+          
     complex vortexcharge = int1d(Thtrunc,-1)( 1./((x-xjG)+1i*(y-yjG)) *(-N.y + N.x *1i)/(2*pi) );
-    complex vortexcharge2 = int1d(Thtrunc,-1)( (-N.y*dx(arguhtrunc)+N.x*dy(arguhtrunc)) *(-N.y + N.x *1i)/(2*pi) );
-    real vortexcharge3 = int1d(Thtrunc,-1)( -N.y*dx(arguhtrunc) + N.x*dy(arguhtrunc)  );
+    complex vortexcharge2 = int1d(Thtrunc,-1)( -N.y * y^2 * (x-1i*y)/(r^4) + N.x * x^2 * (x-1i*y)/(r^4)  );
+    complex vortexcharge3 = int1d(Thtrunc,-1)( -N.y*dx(argri) + N.x*dy(argri)  );
     
     string title = "Mesh : " + j + "   " + vortexcharge;
-    cout << "Test =  " << vortexcharge << endl;
-    /*cout << "Int =  " << vortexcharge2 << endl;*/
-    cout << "Int = " << vortexcharge3 << endl;
+    /*cout << "Test =  " << vortexcharge << endl;
+    cout << "Int =  " << vortexcharge2 << endl;
+    cout << "Int = " << vortexcharge3 << endl;*/
     /*if(abs(vortexcharge) < 20){plot(uhtrunc,wait=1,cmm=title);}*/
 
 
@@ -61,6 +61,6 @@ macro controlbasins(Tmesh,density,argument,localmin,regions)
   plot(constantbyvortex,fill=1,wait=1);
   cout << "CPU time = " << clock()-cpu << endl;
 }
-//EOM
+EndMacro
 
 controlbasins(Th,rho,uh,lm,r);

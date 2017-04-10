@@ -3,7 +3,7 @@ real [int,int] stats(lm.n,4);
 real[int] xx(lm.n), yy(lm.n);
 int size = 0; /* count */
 
-macro fitvortex(Tmesh,density,localmin,regions){
+NewMacro fitvortex(Tmesh,density,localmin,regions){
   /*===============================================================
     Loop over each basin of attraction
     ===============================================================*/
@@ -49,8 +49,8 @@ macro fitvortex(Tmesh,density,localmin,regions){
     /*===============================================================
       GAUSSIAN FIT : definition of functionnals and starting parameters
       ===============================================================*/
-    real[int] gauss(5), gaussinit(5); /*a,b,c,x0,y0*/
-    real[int] gausstilde(5);
+    real[int] alpha(5), alphainit(5); /*x0,y0,a,b,c*/
+    real[int] alphatilde(5);
     real R = abs(rhojj[].max-rhojj[].min);
 	
     varf vbord2(uh,vh) = on(-2,uh=rhojj);
@@ -63,13 +63,13 @@ macro fitvortex(Tmesh,density,localmin,regions){
     
     real[int,int] M(3,3);
     M(0,0) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^4  );
-    M(0,1) = int1d(Thjj,levelset=rhojj-minborder)( 2*(x-xjG)^3*(y-yjG)  );
+    M(0,1) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^3*(y-yjG)  );
     M(0,2) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^2*(y-yjG)^2  );
     M(1,0) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^3*(y-yjG)  );
-    M(1,1) = int1d(Thjj,levelset=rhojj-minborder)( 2*(x-xjG)^2*(y-yjG)^2  );
+    M(1,1) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^2*(y-yjG)^2  );
     M(1,2) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)*(y-yjG)^3 );
     M(2,0) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)^2*(y-yjG)^2  );
-    M(2,1) = int1d(Thjj,levelset=rhojj-minborder)( 2*(y-yjG)^3*(x-xjG)  );
+    M(2,1) = int1d(Thjj,levelset=rhojj-minborder)( (y-yjG)^3*(x-xjG)  );
     M(2,2) = int1d(Thjj,levelset=rhojj-minborder)( (y-yjG)^4  );
      
     inv(M);
@@ -79,45 +79,52 @@ macro fitvortex(Tmesh,density,localmin,regions){
     SM(1) = int1d(Thjj,levelset=rhojj-minborder)( (x-xjG)*(y-yjG)  )*val;
     SM(2) = int1d(Thjj,levelset=rhojj-minborder)( (y-yjG)^2  )*val;
 
-    gaussinit(0:2) = M*SM;
-    gaussinit(3) = xjG;
-    gaussinit(4) = yjG;
+    alphainit(2:4) = M*SM;
+    alphainit(0) = xjG;
+    alphainit(1) = yjG;
     
-    gausstilde = gaussinit;
-    gauss = gaussinit;
-    cout << "Gauss param init : " << gauss << endl;
+    alphatilde = alphainit;
+    alpha = alphainit;
+    cout << "Gauss param init : " << alpha << endl;
 
+    macro f(r2) (1.-exp(-r2))//
+    macro df(r2,dr2) (dr2*exp(-r2))//
     
-    func ri2 = gauss[0]*(x-gauss[3])^2+2*gauss[1]*(x-gauss[3])*(y-gauss[4])+gauss[2]*(y-gauss[4])^2;
-    func fgauss = 1-exp(-ri2^2);
+    func xx = x-alpha[0];
+    func yy = y-alpha[1];
     
-    func r2a = (x-gauss[3])^2;
-    func r2b = 2*(x-gauss[3])*(y-gauss[4]);
-    func r2c = (y-gauss[4])^2;
-    func r2x0 = -2*gauss[0]*(x-gauss[3])-2*gauss[1]*(y-gauss[4]);
-    func r2y0 = -2*gauss[2]*(y-gauss[4])-2*gauss[1]*(x-gauss[3]);
+    func r2 = alpha[2]*xx*xx + alpha[3]*xx*yy + alpha[4]*yy*yy;
+
+    func d0r2 = -2*alpha[2]*xx - alpha[3]*yy;
+    func d1r2 = -2*alpha[4]*yy - alpha[3]*xx;
+    func d2r2 = xx*xx;
+    func d3r2 = xx*yy;
+    func d4r2 = yy*yy; 
+       
+    func fgauss = f(r2);
     
-    func fa = r2a*2*ri2*exp(-ri2^2);
-    func fb = r2b*2*ri2*exp(-ri2^2);
-    func fc = r2c*2*ri2*exp(-ri2^2);
-    func fx0 = r2x0*2*ri2*exp(-ri2^2);
-    func fy0 = r2y0*2*ri2*exp(-ri2^2);
+    func dfx0 = df(r2,d0r2);
+    func dfy0 = df(r2,d1r2);
+    func dfa = df(r2,d2r2);
+    func dfb = df(r2,d3r2);
+    func dfc = df(r2,d4r2);
+
    
     /* Gaussian functionnal*/
-    func real Jgauss(real[int] & gausstilde){
-      gauss = gausstilde;
+    func real Jgauss(real[int] & alphatilde){
+      alpha = alphatilde;
       return int2d(Thjj)(0.5*abs(fgauss-rhojj)^2);
     }
 
     /* Gaussian functionnal derivative*/
-    func real[int] DJgauss(real [int] & gausstilde){
-      gauss = gausstilde; 
+    func real[int] DJgauss(real [int] & alphatilde){
+      alpha = alphatilde; 
       real[int] res(5);
-      res[0] = int2d(Thjj)( (fgauss-rhojj)*fa  );
-      res[1] = int2d(Thjj)( (fgauss-rhojj)*fb  );
-      res[2] = int2d(Thjj)( (fgauss-rhojj)*fc  );
-      res[3] = int2d(Thjj)( (fgauss-rhojj)*fx0  );
-      res[4] = int2d(Thjj)( (fgauss-rhojj)*fy0  );
+      res[0] = int2d(Thjj)( (fgauss-rhojj)*dfx0  );
+      res[1] = int2d(Thjj)( (fgauss-rhojj)*dfy0  );
+      res[2] = int2d(Thjj)( (fgauss-rhojj)*dfa  );
+      res[3] = int2d(Thjj)( (fgauss-rhojj)*dfb  );
+      res[4] = int2d(Thjj)( (fgauss-rhojj)*dfc  );
 
       return res;
   
@@ -141,14 +148,14 @@ macro fitvortex(Tmesh,density,localmin,regions){
       /* Initial guess and solution of GPE */
       plot(Thj, wait=1, cmm= "Frist truncated mesh");
       plot(Thjj, wait = 1, cmm = "New truncated mesh"); /* Plot new mesh*/
-      Vhjj r = ri2;
-      plot(r,wait=1);
       plot(rhojj, wait=1, cmm = "Solution of the GPE on the truncated mesh"); /*Plot the restricted solution on the truncated mesh*/
-      Vhjj fgaussinit = fgauss;
-      plot(fgaussinit,wait=1,cmm="Initial guess for the Gaussian fit");
       /* Norm*/
-      real normbeforeipopt = int2d(Thjj)( (rhojj-fgaussinit)^2 );
+      Vhjj fgaussinit = fgauss;
+      real normbeforeipopt = sqrt(int2d(Thjj)( (rhojj-fgaussinit)^2 ));
       cout << "Norm 2 before ipopt : " << normbeforeipopt << endl;
+
+      string titleinit = "Initial guess for the Gaussian fit. Norm2 = " + normbeforeipopt; 
+      plot(fgaussinit,rhojj,wait=1,cmm=titleinit);
     }
 
 
@@ -156,25 +163,29 @@ macro fitvortex(Tmesh,density,localmin,regions){
     
     /* Ipopt;*/
     bool vr;    
-    vr = IPOPT(Jgauss,DJgauss,gausstilde);
+    vr = IPOPT(Jgauss,DJgauss,alphatilde);
     cout << "Ipopt convergence : " << vr << endl;     
     cout << endl;
     cout << "****************************" << endl;
-    cout << "Init gauss parameters : " << gaussinit << endl;
-    cout << "Gauss parameters after IPOPT : " << gausstilde << endl;
+    cout << "Init gauss parameters : " << alphainit << endl;
+    cout << "Gauss parameters after IPOPT : " << alphatilde << endl;
 
     /* If user wants plots to be displayed*/
     if(displayplot > 5){
       /* Result of the fitting*/
-      gauss = gausstilde;
+      alpha = alphatilde;
       Vhjj fgaussfinal = fgauss;
-      plot(fgaussfinal, wait=1, cmm="Final fit");
-      plot(fgaussfinal,rhojj,wait=1,cmm = "Display of rhoj and its fit");
+      /* Norm*/
+      real normafteripopt = sqrt(int2d(Thjj)( (rhojj-fgaussfinal)^2 ));
+      cout << "Norm 2 after ipopt : " << normafteripopt << endl;
+
+      string titleafter = "Display of rhoj and its fit. Norm2 = " + normafteripopt;
+      //plot(fgaussfinal, wait=1, cmm="Final fit");
+      plot(fgaussfinal,rhojj,wait=1,cmm = titleafter);
+
       Vhjj diff = abs( (fgaussfinal-rhojj) / rhojj);
       plot(diff,wait=1,cmm = "Difference");
-      /* Norm*/
-      real normafteripopt = int2d(Thjj)( (rhojj-fgaussfinal)^2 );
-      cout << "Norm 2 after ipopt : " << normafteripopt << endl;
+
     }      
 
     cout << endl;
@@ -221,6 +232,6 @@ macro fitvortex(Tmesh,density,localmin,regions){
     }*/
 
 }
-//EOM
+EndMacro
 
 fitvortex(Th,rho,lmtrue,r)
