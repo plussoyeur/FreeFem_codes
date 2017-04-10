@@ -18,8 +18,9 @@ macro fitaxibackground(Tmesh, modwavefunction, regions)
   if(displayplot > 5){plot(ubackground, wait=1, cmm = "umod background");}
   rhobackground = ubackground^2;
   if(displayplot > 5){plot(rhobackground,wait=1,dim=3, cmm = "rho background");} 
-  rho = min(rho / max(rhobackground,1e-3),1.1);
-  
+  rho = min(rho / max(rhobackground,1e-4),1.1);
+  /*rho = rho - rhobackground;*/
+
   if(displayplot > 5){plot(rho,fill=1, wait=1, cmm = "rho normalised");}
 
 }

@@ -53,11 +53,10 @@ macro fitvortex(Tmesh,density,localmin,regions){
     real[int] ion(3);
     real R = rhoj[].max - rhoj[].min;
     real offset = rhojj[].min;
-	
+    
     varf vbord2(uh,vh) = on(-2,uh=rhojj);
     real[int] vb2 = vbord2(0,Vhjj,tgv=1);
     vb2 = vb2 ? vb2 : 10^8;
-    cout << "Min border : " << vb2.min << endl;
     real minborder = .4*vb2.min;
     real val = (minborder-offset)/(R-minborder+offset);
     

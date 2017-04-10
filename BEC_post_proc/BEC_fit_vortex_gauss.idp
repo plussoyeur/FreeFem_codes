@@ -51,14 +51,14 @@ macro fitvortex(Tmesh,density,localmin,regions){
       ===============================================================*/
     real[int] gauss(5), gaussinit(5); /*a,b,c,x0,y0*/
     real[int] gausstilde(5);
-    
+    real R = abs(rhojj[].max-rhojj[].min);
 	
     varf vbord2(uh,vh) = on(-2,uh=rhojj);
     real[int] vb2 = vbord2(0,Vhjj,tgv=1);
     vb2 = vb2 ? vb2 : 10^8;
     cout << "Min border : " << vb2.min << endl;
     real minborder = .6*vb2.min;
-    real val = sqrt(abs(log(1-minborder)));
+    real val = sqrt(abs(log(minborder)));
     cout << "Val : " << val << endl;
     
     real[int,int] M(3,3);
@@ -86,22 +86,23 @@ macro fitvortex(Tmesh,density,localmin,regions){
     gausstilde = gaussinit;
     gauss = gaussinit;
     cout << "Gauss param init : " << gauss << endl;
+
     
     func ri2 = gauss[0]*(x-gauss[3])^2+2*gauss[1]*(x-gauss[3])*(y-gauss[4])+gauss[2]*(y-gauss[4])^2;
-    func fgauss = (1.-exp(ri2^2));
+    func fgauss = 1-exp(-ri2^2);
     
     func r2a = (x-gauss[3])^2;
     func r2b = 2*(x-gauss[3])*(y-gauss[4]);
     func r2c = (y-gauss[4])^2;
-    func r2x0 = -2*gauss[0]*(x-gauss[3])-2*gauss[1];
-    func r2y0 = -2*gauss[2]*(y-gauss[4])-2*gauss[1];
+    func r2x0 = -2*gauss[0]*(x-gauss[3])-2*gauss[1]*(y-gauss[4]);
+    func r2y0 = -2*gauss[2]*(y-gauss[4])-2*gauss[1]*(x-gauss[3]);
     
-    func fa = -r2a*2*ri2*exp(ri2^2);
-    func fb = -r2b*2*ri2*exp(ri2^2);
-    func fc = -r2c*2*ri2*exp(ri2^2);
-    func fx0 = -r2x0*2*ri2*exp(ri2^2);
-    func fy0 = -r2y0*2*ri2*exp(ri2^2);
-    
+    func fa = r2a*2*ri2*exp(-ri2^2);
+    func fb = r2b*2*ri2*exp(-ri2^2);
+    func fc = r2c*2*ri2*exp(-ri2^2);
+    func fx0 = r2x0*2*ri2*exp(-ri2^2);
+    func fy0 = r2y0*2*ri2*exp(-ri2^2);
+   
     /* Gaussian functionnal*/
     func real Jgauss(real[int] & gausstilde){
       gauss = gausstilde;
