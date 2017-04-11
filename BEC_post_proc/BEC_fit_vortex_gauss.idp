@@ -27,7 +27,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     real rG = sqrt(xjG^2+yjG^2); /*dist from center of initial mesh*/
 
     /*===============================================================
-       Restrict mesh by maximizing gradient
+       Restrict mesh by taking the lowest isovalue on the border
        ===============================================================*/
 
     
@@ -47,7 +47,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     Vhjj rhojj = rhoj; /* Restrict function on this new mesh*/
 
     /*===============================================================
-      GAUSSIAN FIT : definition of functionnals and starting parameters
+      Starting parameters : solving a linear system to fit an ellipse
       ===============================================================*/
     real[int] alpha(5), alphainit(5); /*x0,y0,a,b,c*/
     real[int] alphatilde(5);
@@ -87,6 +87,10 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     alpha = alphainit;
     cout << "Gauss param init : " << alpha << endl;
 
+    /*===============================================================
+      GAUSSIAN functionals and functionnal derivative : definition
+      ===============================================================*/
+    
     macro f(r2) (1.-exp(-r2))//
     macro df(r2,dr2) (dr2*exp(-r2))//
     
@@ -139,7 +143,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     cout << endl;
     cout << endl;
 
-    if(displayplot > 5){
+    if(displayplot > 3 && wwait == 1){
       /* Where is the vortex on the global mesh*/
       Phj wherej = 1;
       Ph where = wherej;
@@ -155,15 +159,14 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
       cout << "Norm 2 before ipopt : " << normbeforeipopt << endl;
 
       string titleinit = "Initial guess for the Gaussian fit. Norm2 = " + normbeforeipopt; 
-      plot(fgaussinit,rhojj,wait=1,cmm=titleinit);
+      plot(fgaussinit,rhojj,dim=3,wait=wwait,cmm=titleinit);
     }
-
-
-
     
     /* Ipopt;*/
-    bool vr;    
-    vr = IPOPT(Jgauss,DJgauss,alphatilde);
+    bool vr;
+    vr = IPOPT(Jgauss,DJgauss,alphatilde,printlevel = 0);
+
+    
     cout << "Ipopt convergence : " << vr << endl;     
     cout << endl;
     cout << "****************************" << endl;
@@ -171,7 +174,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     cout << "Gauss parameters after IPOPT : " << alphatilde << endl;
 
     /* If user wants plots to be displayed*/
-    if(displayplot > 5){
+    if(displayplot > 3){
       /* Result of the fitting*/
       alpha = alphatilde;
       Vhjj fgaussfinal = fgauss;
@@ -181,11 +184,12 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
 
       string titleafter = "Display of rhoj and its fit. Norm2 = " + normafteripopt;
       //plot(fgaussfinal, wait=1, cmm="Final fit");
-      plot(fgaussfinal,rhojj,wait=1,cmm = titleafter);
+      plot(fgaussfinal,rhojj,dim=3,wait=wwait,cmm = titleafter);
 
-      Vhjj diff = abs( (fgaussfinal-rhojj) / rhojj);
-      plot(diff,wait=1,cmm = "Difference");
-
+      if(wwait == 1){ 
+	Vhjj diff = abs( (fgaussfinal-rhojj) / rhojj);
+	plot(diff,wait=1,cmm = "Difference");
+      }
     }      
 
     cout << endl;

@@ -8,7 +8,8 @@ load "pipe"; //BEC_2D_Macros.idp
 load "fflapack" //Used to fit the ellipse in BEC_fit_vortex.idp
 
 verbosity = 1;
-int displayplot = 8;
+int displayplot = 4;
+int wwait = 0;
 
 //===============================================================
 // load functions and mesh
@@ -81,7 +82,7 @@ real[int] lmtilde(lm.n);
 real[int,int] lmtrue(lm.n,2);
 
 // Plot basins of attractions
-if(displayplot > 5){plot(r,fill=1,wait=1);}
+if(displayplot > 2){plot(r,fill=1,wait=1);}
 
 // Macro used to check if the basin contains a vortex
 include "BEC_control_basins.idp"
