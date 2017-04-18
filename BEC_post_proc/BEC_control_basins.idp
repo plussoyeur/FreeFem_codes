@@ -1,12 +1,8 @@
-NewMacro controlbasins(Tmesh,density,argument,localmin,regions)
+NewMacro controlbasins(Tmesh,density,wavefunction,localmin,regions)
 {
   real cpu = clock();
   int k = 0;
   
-  /* Area of the domain -> should not be used */
-  real aire = int2d(Th,levelset=1e-3-density)(1.);
-  /* Maximum density of the domain -> should not be used */
-  real rhomax = density[].max;
   for(int j = 0; j < localmin.n; j++){
     int globalindmin = lm[j];
     real xjG = Th(globalindmin).x; 
@@ -16,45 +12,21 @@ NewMacro controlbasins(Tmesh,density,argument,localmin,regions)
     mesh Thtrunc = trunc(Tmesh, floor(regions) == j, label = -1); /* take the jth minimum */
     
     fespace Vhtrunc(Thtrunc, P1);
-    Vhtrunc<complex> uhtrunc= argument;
-    Vhtrunc          arguhtrunc = arg(uhtrunc);
-
-    /* Integrate wave fonction around the vortex */
-    /* (-N.y*dx(arguhtrunc)+N.x*dy(arguhtrunc)) */
-
-    Vhtrunc r = sqrt((x-xjG+0.00001)^2+(y-yjG+0.000001)^2);
-    Vhtrunc<complex> f = (x-1i*y)/(r^4);
-    Vhtrunc<complex> ri = x + 1i*y;
-    Vhtrunc argri = arg(ri);
-          
-    complex vortexcharge = int1d(Thtrunc,-1)( 1./((x-xjG)+1i*(y-yjG)) *(-N.y + N.x *1i)/(2*pi) );
-    complex vortexcharge2 = int1d(Thtrunc,-1)( -N.y * y^2 * (x-1i*y)/(r^4) + N.x * x^2 * (x-1i*y)/(r^4)  );
-    complex vortexcharge3 = int1d(Thtrunc,-1)( -N.y*dx(argri) + N.x*dy(argri)  );
-    
-    string title = "Mesh : " + j + "   " + vortexcharge;
-    /*cout << "Test =  " << vortexcharge << endl;
-    cout << "Int =  " << vortexcharge2 << endl;
-    cout << "Int = " << vortexcharge3 << endl;*/
-    /*if(abs(vortexcharge) < 20){plot(uhtrunc,wait=1,cmm=title);}*/
-
-
-
-    /* Previous method still not working */
-    Vhtrunc rhotrunc = density;
-    real rhotruncmin = rhotrunc[].min, rhotruncmax = rhotrunc[].max;
-
-
-    if( rhotruncmin < 0.3*rhotruncmax && rhotruncmax >  rhomax*0.1 && Thtrunc.area < 3*aire/lm.n &&  Thtrunc.area > 0.1*aire/lm.n  )
-	  {
-	    lmtilde(j)=1;
-	    lmtrue(k,0) = lm(j);
-	    lmtrue(k,1) = j;
-	    k++;
-	  }
-	else
-	  {
-	    lmtilde(j)=0;
-	  }
+    Vhtrunc<complex> uhtrunc= wavefunction;
+  
+    /* Integrate gradient of the phase of the wave function  around the vortex */
+    real charge = int1d(Thtrunc)( (-N.y*imag(dx(uh)*conj(uh))+N.x*imag(dy(uh)*conj(uh)))/max(norm(uh),0.0001))/(2*pi);
+    //cout << charge << endl;
+    real epsilon = 0.01;
+    if(abs(abs(charge)-1) < epsilon){
+      lmtilde(j)=1;
+      lmtrue(k,0) = lm(j);
+      lmtrue(k,1) = j;
+      k++;
+    }
+    else{
+      lmtilde(j) = 0;
+    }
   }
   lmtrue.resize(k,2);
   constantbyvortex = lmtilde(real(regions));
@@ -64,3 +36,30 @@ NewMacro controlbasins(Tmesh,density,argument,localmin,regions)
 EndMacro
 
 controlbasins(Th,rho,uh,lm,r);
+
+
+
+    
+
+
+//   /* Previous method still not working */
+//   Vhtrunc rhotrunc = density;
+//   real rhotruncmin = rhotrunc[].min, rhotruncmax = rhotrunc[].max;
+
+
+//   if( rhotruncmin < 0.3*rhotruncmax && rhotruncmax >  rhomax*0.1 && Thtrunc.area < 3*aire/lm.n &&  Thtrunc.area > 0.1*aire/lm.n  )
+//     {
+// 	lmtilde(j)=1;
+// 	lmtrue(k,0) = lm(j);
+// 	lmtrue(k,1) = j;
+// 	k++;
+//     }
+//   else
+//     {
+// 	lmtilde(j)=0;
+//     }
+// }
+// lmtrue.resize(k,2);
+// constantbyvortex = lmtilde(real(regions));
+// plot(constantbyvortex,fill=1,wait=1);
+// cout << "CPU time = " << clock()-cpu << endl;

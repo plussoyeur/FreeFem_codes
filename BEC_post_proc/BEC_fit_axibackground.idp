@@ -14,6 +14,7 @@ NewMacro fitaxibackground(Tmesh, modwavefunction, regions)
 
   V1d u1dt;
   u1dt[]=M^-1*b1d;
+  plot(u1dt,wait=1, cmm="ohkh");
   ubackground = u1dt(sqrt(x*x+y*y),0);
   if(displayplot > 2){plot(ubackground, wait=1, cmm = "umod background");}
   rhobackground = ubackground^2;

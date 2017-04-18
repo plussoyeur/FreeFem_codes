@@ -1,6 +1,6 @@
 /* Variables */
-real [int,int] stats(lm.n,4);
-real[int] xx(lm.n), yy(lm.n);
+real [int,int] stats(lm.n,3);
+real[int] coordx(lm.n), coordy(lm.n);
 int size = 0; /* count */
 
 NewMacro fitvortex(Tmesh,density,localmin,regions){
@@ -49,7 +49,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     /*===============================================================
       Starting parameters : solving a linear system to fit an ellipse
       ===============================================================*/
-    real[int] alpha(5), alphainit(5); /*x0,y0,a,b,c*/
+    real[int] alpha(5), alphainit(5); /*x0,y0,a(xx),b(xy),c(yy)*/
     real[int] alphatilde(5);
     real R = abs(rhojj[].max-rhojj[].min);
 	
@@ -99,20 +99,83 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     
     func r2 = alpha[2]*xx*xx + alpha[3]*xx*yy + alpha[4]*yy*yy;
 
+    // First derivative
     func d0r2 = -2*alpha[2]*xx - alpha[3]*yy;
     func d1r2 = -2*alpha[4]*yy - alpha[3]*xx;
     func d2r2 = xx*xx;
     func d3r2 = xx*yy;
-    func d4r2 = yy*yy; 
+    func d4r2 = yy*yy;
        
     func fgauss = f(r2);
     
-    func dfx0 = df(r2,d0r2);
-    func dfy0 = df(r2,d1r2);
-    func dfa = df(r2,d2r2);
-    func dfb = df(r2,d3r2);
-    func dfc = df(r2,d4r2);
+    func d0 = df(r2,d0r2);
+    func d1 = df(r2,d1r2);
+    func d2 = df(r2,d2r2);
+    func d3 = df(r2,d3r2);
+    func d4 = df(r2,d4r2);
 
+    // Second derivative
+    func d00r2 = 2*alpha[2];
+    func d10r2 = alpha[3];
+    func d20r2 = -2*xx;
+    func d30r2 = -yy;
+    func d40r2 = 0;
+
+    func d01r2 = alpha[3];
+    func d11r2 = 2*alpha[4];
+    func d21r2 = 0;
+    func d31r2 = -xx;
+    func d41r2 = -2*yy;
+
+    func d02r2 = -2*xx;
+    func d12r2 = 0;
+    func d22r2 = 0;
+    func d32r2 = 0;
+    func d42r2 = 0;
+
+    func d03r2 = -yy;
+    func d13r2 = -xx;
+    func d23r2 = 0;
+    func d33r2 = 0;
+    func d43r2 = 0;
+
+    func d04r2 = 0;
+    func d14r2 = -2*yy;
+    func d24r2 = 0;
+    func d34r2 = 0;
+    func d44r2 = 0;
+
+    func d00 = df(r2,d00r2-d0r2*d0r2);
+    func d10 = df(r2,d10r2-d1r2*d0r2);
+    func d20 = df(r2,d20r2-d2r2*d0r2);
+    func d30 = df(r2,d30r2-d3r2*d0r2);
+    func d40 = df(r2,d40r2-d4r2*d0r2);
+
+    func d01 = df(r2,d01r2-d0r2*d1r2);
+    func d11 = df(r2,d11r2-d1r2*d1r2);
+    func d21 = df(r2,d21r2-d2r2*d1r2);
+    func d31 = df(r2,d31r2-d3r2*d1r2);
+    func d41 = df(r2,d41r2-d4r2*d1r2);
+    
+    func d02 = df(r2,d02r2-d0r2*d2r2);
+    func d12 = df(r2,d12r2-d1r2*d2r2);
+    func d22 = df(r2,d22r2-d2r2*d2r2);
+    func d32 = df(r2,d32r2-d3r2*d2r2);
+    func d42 = df(r2,d42r2-d4r2*d2r2);
+
+    func d03 = df(r2,d03r2-d0r2*d3r2);
+    func d13 = df(r2,d13r2-d1r2*d3r2);
+    func d23 = df(r2,d23r2-d2r2*d3r2);
+    func d33 = df(r2,d33r2-d3r2*d3r2);
+    func d43 = df(r2,d43r2-d4r2*d3r2);
+
+    func d04 = df(r2,d04r2-d0r2*d4r2);
+    func d14 = df(r2,d14r2-d1r2*d4r2);
+    func d24 = df(r2,d24r2-d2r2*d4r2);
+    func d34 = df(r2,d34r2-d3r2*d4r2);
+    func d44 = df(r2,d44r2-d4r2*d4r2);
+    
+    
    
     /* Gaussian functionnal*/
     func real Jgauss(real[int] & alphatilde){
@@ -124,14 +187,55 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     func real[int] DJgauss(real [int] & alphatilde){
       alpha = alphatilde; 
       real[int] res(5);
-      res[0] = int2d(Thjj)( (fgauss-rhojj)*dfx0  );
-      res[1] = int2d(Thjj)( (fgauss-rhojj)*dfy0  );
-      res[2] = int2d(Thjj)( (fgauss-rhojj)*dfa  );
-      res[3] = int2d(Thjj)( (fgauss-rhojj)*dfb  );
-      res[4] = int2d(Thjj)( (fgauss-rhojj)*dfc  );
+      res[0] = int2d(Thjj)( (fgauss-rhojj)*d0  );
+      res[1] = int2d(Thjj)( (fgauss-rhojj)*d1  );
+      res[2] = int2d(Thjj)( (fgauss-rhojj)*d2  );
+      res[3] = int2d(Thjj)( (fgauss-rhojj)*d3  );
+      res[4] = int2d(Thjj)( (fgauss-rhojj)*d4  );
 
       return res;
   
+    }
+
+    /* Gaussian hessian */
+    func matrix DDJgauss(real [int] & alphatilde){
+      alpha = alphatilde;
+      real[int,int] res(5,5);
+
+      res(0,0) = int2d(Thjj)( (fgauss-rhojj)*d00 + d0*d0   );
+      res(0,1) = int2d(Thjj)( (fgauss-rhojj)*d10 + d1*d0   );
+      res(0,2) = int2d(Thjj)( (fgauss-rhojj)*d20 + d2*d0   );
+      res(0,3) = int2d(Thjj)( (fgauss-rhojj)*d30 + d3*d0   );
+      res(0,4) = int2d(Thjj)( (fgauss-rhojj)*d40 + d4*d0   );
+
+      res(1,0) = int2d(Thjj)( (fgauss-rhojj)*d01 + d0*d1   );
+      res(1,1) = int2d(Thjj)( (fgauss-rhojj)*d11 + d1*d1   );
+      res(1,2) = int2d(Thjj)( (fgauss-rhojj)*d21 + d2*d1   );
+      res(1,3) = int2d(Thjj)( (fgauss-rhojj)*d31 + d3*d1   );
+      res(1,4) = int2d(Thjj)( (fgauss-rhojj)*d41 + d4*d1   );
+
+      res(2,0) = int2d(Thjj)( (fgauss-rhojj)*d02 + d0*d2   );
+      res(2,1) = int2d(Thjj)( (fgauss-rhojj)*d12 + d1*d2   );
+      res(2,2) = int2d(Thjj)( (fgauss-rhojj)*d22 + d2*d2   );
+      res(2,3) = int2d(Thjj)( (fgauss-rhojj)*d32 + d3*d2   );
+      res(2,4) = int2d(Thjj)( (fgauss-rhojj)*d42 + d4*d2   );
+
+      res(3,0) = int2d(Thjj)( (fgauss-rhojj)*d03 + d0*d3   );
+      res(3,1) = int2d(Thjj)( (fgauss-rhojj)*d13 + d1*d3   );
+      res(3,2) = int2d(Thjj)( (fgauss-rhojj)*d23 + d2*d3   );
+      res(3,3) = int2d(Thjj)( (fgauss-rhojj)*d33 + d3*d3   );
+      res(3,4) = int2d(Thjj)( (fgauss-rhojj)*d43 + d4*d3   );
+      
+      res(4,0) = int2d(Thjj)( (fgauss-rhojj)*d03 + d0*d4   );
+      res(4,1) = int2d(Thjj)( (fgauss-rhojj)*d13 + d1*d4   );
+      res(4,2) = int2d(Thjj)( (fgauss-rhojj)*d23 + d2*d4   );
+      res(4,3) = int2d(Thjj)( (fgauss-rhojj)*d33 + d3*d4   );
+      res(4,4) = int2d(Thjj)( (fgauss-rhojj)*d43 + d4*d4   );
+
+      matrix result = res;
+
+      return result;
+      
     }
       
     /*===============================================================
@@ -164,7 +268,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     
     /* Ipopt;*/
     bool vr;
-    vr = IPOPT(Jgauss,DJgauss,alphatilde,printlevel = 0);
+    vr = IPOPT(Jgauss,DJgauss,DDJgauss,alphatilde,printlevel = 0);
 
     
     cout << "Ipopt convergence : " << vr << endl;     
@@ -173,15 +277,17 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     cout << "Init gauss parameters : " << alphainit << endl;
     cout << "Gauss parameters after IPOPT : " << alphatilde << endl;
 
+
+    
+    /* Result of the fitting*/
+    alpha = alphatilde;
+    Vhjj fgaussfinal = fgauss;
+    /* Norm*/
+    real normafteripopt = sqrt(int2d(Thjj)( (rhojj-fgaussfinal)^2 ));
+    cout << "Norm 2 after ipopt : " << normafteripopt << endl;
+
     /* If user wants plots to be displayed*/
     if(displayplot > 3){
-      /* Result of the fitting*/
-      alpha = alphatilde;
-      Vhjj fgaussfinal = fgauss;
-      /* Norm*/
-      real normafteripopt = sqrt(int2d(Thjj)( (rhojj-fgaussfinal)^2 ));
-      cout << "Norm 2 after ipopt : " << normafteripopt << endl;
-
       string titleafter = "Display of rhoj and its fit. Norm2 = " + normafteripopt;
       //plot(fgaussfinal, wait=1, cmm="Final fit");
       plot(fgaussfinal,rhojj,dim=3,wait=wwait,cmm = titleafter);
@@ -201,40 +307,38 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     /*===============================================================
        Stats
        ===============================================================*/
-    /*xx[size] = xjG;
-    yy[size] = yjG;
+    coordx[size] = alpha[0];
+    coordy[size] = alpha[1];
 
-    real eigval1 = .5*(ionut[0]+ionut[2]+sqrt( (ionut[0]-ionut[2])^2 + 4*ionut[1]^2   )   );
-    real eigval2 = .5*(ionut[0]+ionut[2]-sqrt( (ionut[0]-ionut[2])^2 + 4*ionut[1]^2   )   );
-
-    real eccentricity = sqrt(1 - min(eigval1,eigval2)^2/max(eigval1,eigval2)^2 );
+    real eigval1 = .5*(alpha[2]+alpha[4]+sqrt( (alpha[2]-alpha[4])^2 + 4*alpha[3]^2   )   );
+    real eigval2 = .5*(alpha[2]+alpha[4]-sqrt( (alpha[2]-alpha[4])^2 + 4*alpha[3]^2   )   );
     real sharpness = sqrt(pi*eigval1*eigval2);
+    real dist = rG/distmax;
+    
+    stats(size,0) = dist;
+    stats(size,1) = sharpness;
+    stats(size,2) = normafteripopt;
 
-    stats(size,0) = rG;
-    stats(size,1) = R;
-    stats(size,2) = eccentricity;
-    stats(size,3) = sharpness;
-
-    size++;   */   
+    size++;
 
   }
 
-  /*xx.resize(size);
-  yy.resize(size);
+  coordx.resize(size);
+  coordy.resize(size);
 
-  stats.resize(size,4);
+  stats.resize(size,2);
 
-  mesh Thv = triangulate(xx,yy);
-  if(displayplot > 5) plot(Thv, wait=1);
-  if(displayplot > 5) plot(Thv, rho, wait=1);
+  mesh Thv = triangulate(coordx,coordy);
+  if(displayplot > 2) plot(Thv, wait=1, cmm = "Abrikosov");
+  if(displayplot > 2) plot(Thv, rho, wait=1, cmm = "Abrikosov and GPE solution");
   cout << "Number of vertex : " << Thv.nv << endl;
 
 
   {
     ofstream datastats("stats.dat");
     datastats << stats << endl;
-    }*/
-
+    }
+  
 }
 EndMacro
 

@@ -1,0 +1,24 @@
+int[int] l1=[1,1,1,1];
+mesh Th=square(30,30,[x*3,y*3],label=l1);
+fespace Vh(Th,P1);
+
+Vh<complex> u = exp(1i*atan(y-1.1,x-1.1));//* exp(1i*atan(y-2.1,x-2.1)); // la phase est theta
+// gradiand de la phase  t :  u = |u| e^{it}
+//  t =   imag log(u) //  real
+//  t' =  imag (u' / u) =   imag ( u' * u^*/ |u|^2 )
+//      = imag (ur' + i ui') (ur -i ui)/|u|^2
+//  t'  =   (- ur' ui + ui' ur )/ |u|^2
+// dx(t) =
+Vh gradu = arg(u);
+plot(u,wait=1);
+plot(gradu,wait=1);
+Vh tx =  imag(dx(u)*conj(u))/max(norm(u),0.001);
+Vh ty =  imag(dy(u)*conj(u))/max(norm(u),0.001);
+plot([tx,ty]);//  OK
+//cout << int1d(Th)(ima
+
+
+        // donc on a
+
+        real q= int1d(Th)( (-N.y*imag(dx(u)*conj(u))+N.x*imag(dy(u)*conj(u)))/norm(u))/(2*pi);
+cout << q << endl;Fre+

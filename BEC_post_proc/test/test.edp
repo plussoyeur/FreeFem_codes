@@ -1,0 +1,74 @@
+mesh Th("Thtest.msh");
+fespace Vh(Th,P1);
+
+Vh<complex> uh;
+{ifstream f("wavetest.txt");
+  f >> uh[];}
+
+Vh arguh = arg(uh);
+plot(arguh,wait=1);
+
+varf vbord(u,v) = on(-1,u=uh);
+complex[int] vb = vbord(0,Vh,tgv=1);
+Vh<complex> vb1;
+
+//cout << vb << endl;
+
+vb1[] = vb;
+Vh argvb = arg(vb1);
+
+plot(argvb,wait=1);
+
+real q= int1d(Th)( (-N.y*imag(dx(uh)*conj(uh))+N.x*imag(dy(uh)*conj(uh)))/norm(uh))/(2*pi);
+cout << "q : " << q << endl;
+
+
+
+
+
+varf On2(u,v) = on(-1,u=1);
+real[int] on2=On2(0,Vh,tgv=1);
+int[int] indices2(on2.sum);
+for(int i=0, j=0; i < Vh.ndof; i++){
+  if(on2[i]){indices2[j] = i; j++;}
+ }
+
+
+//cout << indices2 << endl;
+Vh where=0;
+
+real s=0;
+// for(int i =0; i< indices2.n-1; i++){
+//   real phi = argvb[][indices2[i+1]] - argvb[][indices2[i]] + pi;
+//   cout << phi << "   " << 2*pi << endl;
+//   if(abs(phi) > 2*pi){ where[][indices2[i]] = 1;}
+//   s += phi - floor(phi/(2*pi))*2*pi;
+//   s -= pi;
+//  }
+
+
+
+// plot(where,wait=1,fill=1,cmm="where");
+// plot(where,argvb,wait=1);
+// real phi = argvb[][indices2[0]] - argvb[][indices2[indices2.n-1]] + pi;
+// cout << phi - floor(phi/(2*pi))*2*pi << endl;
+// s += phi - floor(phi/(2*pi))*2*pi;
+// s -= pi;
+cout << "-------------" << endl;
+for(int i = 0; i < Th.nbe-1; i++){
+  real phi = argvb[][Th.be(i+1)[0]] - argvb[][Th.be(i)[0]] + pi;
+  //cout << argvb[][Th.be(i+1)] << "  " << argvb[][Th.be(i)] << "    " << phi << "   " << 2*pi << endl;
+  if(abs(phi) > 2*pi){ where[][Th.be(i+1)[0]] = 1;}
+  s += phi - floor(phi/(2*pi))*2*pi;
+  s -= pi;
+  //cout << Th.be(i)[1] << "     " << Th.be(i)[0] << endl;
+ }
+
+plot(where,wait=1,fill=1,cmm="where");
+plot(where,argvb,wait=1);
+real phi = argvb[][Th.be(0)[0]] - argvb[][Th.be(Th.nbe-1)[0]] + pi;
+cout << phi - floor(phi/(2*pi))*2*pi << endl;
+//s += phi - floor(phi/(2*pi))*2*pi;
+//s -= pi;
+
+cout << "Res : " <<  s << endl;
