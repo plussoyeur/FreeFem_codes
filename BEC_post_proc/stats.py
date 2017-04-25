@@ -2,8 +2,8 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-#data = np.loadtxt("statsnohessian.dat",skiprows=1)
-data = np.loadtxt("statsabrikosov.dat",skiprows=1)
+data = np.loadtxt("statsnohessian.dat",skiprows=1)
+#data = np.loadtxt("statsabrikosov.dat",skiprows=1)
 
 
 def column(matrix,i):
@@ -25,12 +25,12 @@ bin_meansRv, bin_edgesRv, binnumberRv = stats.binned_statistic(x,Rv,statistic='m
 
 
 
-plt.figure(1)
+fig = plt.figure(1,figsize=(18./2.54,10./2.54))
 plt.plot(x,Rv,'b.')
 plt.hlines(bin_meansRv,bin_edgesRv[:-1],bin_edgesRv[1:],colors='g',lw=5)
 plt.title("Vortex core radius vs distance from center")
 plt.xlabel("Distance from center normalized : " r'$\frac{r}{R_{BEC}}$')
 plt.ylabel("Vortex core radius")
-
+fig.savefig("vortexradius_vs_distance.png")
 
 plt.show()

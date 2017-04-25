@@ -1,0 +1,48 @@
+NewMacro abrikosov(abrimeshname){
+  
+  mesh Th = readmesh(abrimeshname);
+  fespace Vhabri(Th,P1);
+  
+  // varf to know the number of edges for each vertex
+  varf assemb(u,v) = intalledges(Th)(1.*v/lenEdge);
+  // varf to know the average  length of edges for each vertex with 6 neighboors
+  varf res(u,v) = intalledges(Th)(1.*v/6.);
+  // assemble number of edges
+  real[int] nbedges = assemb(0,Vhabri);
+  // take only vertex with 6 neighboors
+  nbedges = floor(nbedges);
+  nbedges -= 6;
+  // assemble average lenght
+  real[int] result = res(0,Vhabri);
+  // take only vertex with 6 neighboors
+  result =  nbedges ? 0 : result;
+  
+  Vhabri distfromcenter = sqrt(x^2+y^2);
+
+  real[int,int] resultabri(nbedges.n,2);
+  int size = 0;
+  for(int j = 0; j < nbedges.n; j++){
+    if(floor(result[j]) != 0){
+      resultabri(size,0) = distfromcenter[][j]/distmax ;
+      resultabri(size,1) = result[j] ;
+      size ++;
+    }
+  }
+  resultabri.resize(size,2);
+  
+  {
+    ofstream statabrikosov("statsabrikosov.dat");
+    statabrikosov << resultabri << endl;
+  }
+  
+}
+EndMacro
+
+if(ARGV.n > 3){
+  string abrititle = "Abrikosov" + ARGV[2];
+  abrikosov(abrititle);
+ }
+ else
+   {
+     abrikosov("Abrikosov.msh");
+   }

@@ -86,8 +86,13 @@ if(displayplot > 2){plot(r,fill=1,wait=1);}
 
 // Macro used to check if the basin contains a vortex
 include "BEC_control_basins.idp"
+
 // Macro used to fit the background (instead of using Thomas-Fermi)
 include "BEC_fit_axibackground.idp"
+
 // Macro used to fit the vortex
 // include "BEC_test_fit.idp"
 include "BEC_fit_vortex_gauss.idp"
+
+// Macro used to compute the stats on the Abrikosov vortex lattice
+include "BEC_abrikosov.idp"

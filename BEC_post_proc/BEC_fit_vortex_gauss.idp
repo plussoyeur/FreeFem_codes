@@ -7,6 +7,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
   /*===============================================================
     Loop over each basin of attraction
     ===============================================================*/
+  real cputime = clock();
   for(int j = 0; j < localmin.n; j++){
     cout << "Nous sommes a l'iteration : " << j << " / " << localmin.n << endl;
   
@@ -198,6 +199,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     }
 
     /* Gaussian hessian */
+    matrix hessian;
     func matrix DDJgauss(real [int] & alphatilde){
       alpha = alphatilde;
       real[int,int] res(5,5);
@@ -226,15 +228,15 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
       res(3,3) = int2d(Thjj)( (fgauss-rhojj)*d33 + d3*d3   );
       res(3,4) = int2d(Thjj)( (fgauss-rhojj)*d43 + d4*d3   );
       
-      res(4,0) = int2d(Thjj)( (fgauss-rhojj)*d03 + d0*d4   );
-      res(4,1) = int2d(Thjj)( (fgauss-rhojj)*d13 + d1*d4   );
-      res(4,2) = int2d(Thjj)( (fgauss-rhojj)*d23 + d2*d4   );
-      res(4,3) = int2d(Thjj)( (fgauss-rhojj)*d33 + d3*d4   );
-      res(4,4) = int2d(Thjj)( (fgauss-rhojj)*d43 + d4*d4   );
+      res(4,0) = int2d(Thjj)( (fgauss-rhojj)*d04 + d0*d4   );
+      res(4,1) = int2d(Thjj)( (fgauss-rhojj)*d14 + d1*d4   );
+      res(4,2) = int2d(Thjj)( (fgauss-rhojj)*d24 + d2*d4   );
+      res(4,3) = int2d(Thjj)( (fgauss-rhojj)*d34 + d3*d4   );
+      res(4,4) = int2d(Thjj)( (fgauss-rhojj)*d44 + d4*d4   );
 
-      matrix result = res;
+      hessian = res;
 
-      return result;
+      return hessian;
       
     }
       
@@ -268,7 +270,7 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
     
     /* Ipopt;*/
     bool vr;
-    vr = IPOPT(Jgauss,DJgauss,DDJgauss,alphatilde,printlevel = 0);
+    vr = IPOPT(Jgauss,DJgauss,alphatilde,printlevel = 0);
 
     
     cout << "Ipopt convergence : " << vr << endl;     
@@ -312,10 +314,10 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
 
     real eigval1 = .5*(alpha[2]+alpha[4]+sqrt( (alpha[2]-alpha[4])^2 + 4*alpha[3]^2   )   );
     real eigval2 = .5*(alpha[2]+alpha[4]-sqrt( (alpha[2]-alpha[4])^2 + 4*alpha[3]^2   )   );
-    real sharpness = sqrt(pi*eigval1*eigval2);
-    real dist = rG/distmax;
+    real sharpness = sqrt(1/(eigval1*eigval2));
+    real distfromcenter = rG/distmax;
     
-    stats(size,0) = dist;
+    stats(size,0) = distfromcenter;
     stats(size,1) = sharpness;
     stats(size,2) = normafteripopt;
 
@@ -326,20 +328,29 @@ NewMacro fitvortex(Tmesh,density,localmin,regions){
   coordx.resize(size);
   coordy.resize(size);
 
-  stats.resize(size,2);
+  stats.resize(size,3);
 
   mesh Thv = triangulate(coordx,coordy);
   if(displayplot > 2) plot(Thv, wait=1, cmm = "Abrikosov");
   if(displayplot > 2) plot(Thv, rho, wait=1, cmm = "Abrikosov and GPE solution");
+  if(ARGV.n > 3){
+    string abrititle = "Abrikosov" + ARGV[2];
+    savemesh(Thv,abrititle);
+  }
+  else
+    {
+      savemesh(Thv,"Abrikosov.msh");
+    }
   cout << "Number of vertex : " << Thv.nv << endl;
 
 
   {
-    ofstream datastats("stats.dat");
+    ofstream datastats("statsnohessian.dat");
     datastats << stats << endl;
-    }
+  }
   
+  cout << "Time = " << clock()-cputime << endl;
 }
 EndMacro
 
-fitvortex(Th,rho,lmtrue,r)
+fitvortex(Th,rho,lmtrue,r);

@@ -36,30 +36,3 @@ NewMacro controlbasins(Tmesh,density,wavefunction,localmin,regions)
 EndMacro
 
 controlbasins(Th,rho,uh,lm,r);
-
-
-
-    
-
-
-//   /* Previous method still not working */
-//   Vhtrunc rhotrunc = density;
-//   real rhotruncmin = rhotrunc[].min, rhotruncmax = rhotrunc[].max;
-
-
-//   if( rhotruncmin < 0.3*rhotruncmax && rhotruncmax >  rhomax*0.1 && Thtrunc.area < 3*aire/lm.n &&  Thtrunc.area > 0.1*aire/lm.n  )
-//     {
-// 	lmtilde(j)=1;
-// 	lmtrue(k,0) = lm(j);
-// 	lmtrue(k,1) = j;
-// 	k++;
-//     }
-//   else
-//     {
-// 	lmtilde(j)=0;
-//     }
-// }
-// lmtrue.resize(k,2);
-// constantbyvortex = lmtilde(real(regions));
-// plot(constantbyvortex,fill=1,wait=1);
-// cout << "CPU time = " << clock()-cpu << endl;

@@ -1,0 +1,19 @@
+mesh Th = readmesh("AbrikosovGR4_LMIN1_fin.msh.msh");
+fespace Vh(Th,P1);
+fespace Ph(Th,P0);
+
+plot(Th,wait=1,cmm="Abrikosov");
+
+varf assemb(u,v) = intalledges(Th)(1.*v/lenEdge);
+varf res(u,v) = intalledges(Th)(1.*v/6.);
+real[int] nbedges = assemb(0,Vh);
+nbedges = floor(nbedges);
+nbedges -= 6;
+cout << nbedges << endl;
+real[int] result = res(0,Vh);
+cout << result << endl;
+result =  nbedges ? 0 : result;
+cout << result << endl;
+
+//mesh newTh = trunc(Th,floor(result)==0);
+//plot(newTh,wait=1);
