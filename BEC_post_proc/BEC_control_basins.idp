@@ -30,7 +30,7 @@ NewMacro controlbasins(Tmesh,density,wavefunction,localmin,regions)
   }
   lmtrue.resize(k,2);
   constantbyvortex = lmtilde(real(regions));
-  plot(constantbyvortex,fill=1,wait=1);
+  if(displayplot > 2){plot(constantbyvortex,fill=1,wait=1);}
   cout << "CPU time = " << clock()-cpu << endl;
 }
 EndMacro

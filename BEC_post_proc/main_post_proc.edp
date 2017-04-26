@@ -8,7 +8,7 @@ load "pipe"; //BEC_2D_Macros.idp
 load "fflapack" //Used to fit the ellipse in BEC_fit_vortex.idp
 
 verbosity = 1;
-int displayplot = 4;
+int displayplot = 0;
 int wwait = 0;
 
 //===============================================================
@@ -38,7 +38,7 @@ mesh Th = readmesh("BEC_2D-Classical-N-140000-Omega-1000_iter_00301.msh");
 if(ARGV.n > 3) {Th = readmesh(ARGV[2]);} // if user's mesh
 
 // Plot initial mesh
-if(displayplot > 5){plot(Th, wait=1, cmm="Initial mesh");}
+if(displayplot > 1){plot(Th, wait=1, cmm="Initial mesh");}
 
 // Functionnal spaces
 fespace Vhh (Th,FSchoice);
@@ -65,7 +65,7 @@ rho = u2;
 arguh = arg(uh);
 
 // Plot initial solution
-if(displayplot >= 2){plot(u2, wait=1, cmm="Solution from GPE to fit");}
+if(displayplot > 1){plot(u2, wait=1, cmm="Solution from GPE to fit");}
 
 // Compute distance from center
 Ph dist = sqrt(x^2+y^2);
@@ -82,7 +82,7 @@ real[int] lmtilde(lm.n);
 real[int,int] lmtrue(lm.n,2);
 
 // Plot basins of attractions
-if(displayplot > 2){plot(r,fill=1,wait=1);}
+if(displayplot > 1){plot(r,fill=1,wait=1);}
 
 // Macro used to check if the basin contains a vortex
 include "BEC_control_basins.idp"
