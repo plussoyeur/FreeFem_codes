@@ -1,0 +1,64 @@
+//===============================================================
+// LJLL Jussieu - Paris
+// ENS Paris-Saclay
+// LPT Orsay
+// emeriau.pe@gmail.com
+// avril 2017
+//===============================================================
+
+
+//===============================================================
+// Macro used to refine the middle of a 1D mesh
+//       1D mesh is considered being centered around 0 (i.e [-R,R])
+//       1D mesh is considered being along the x-axis
+//===============================================================
+NewMacro meshprocessing(Mesh1d,fspace1d,R,epsilon,dd,Mesh2d,fspace2d,delta){
+
+  //===============================
+  // Refine 1D mesh
+  //===============================
+  if(displayplot > 5){plot(Mesh1d,wait=1,cmm="Initial 1D mesh");}
+
+  real al = 1./(dd-1)*(epsilon-1);
+  real bl = 1./(dd-1)*(epsilon-dd);
+  
+  real ar = al;
+  real br = -bl;
+  
+  real ac = epsilon/dd;
+
+  func xrestr = x/R;
+
+  fspace1d remeshtilde = (al*xrestr+bl)*(xrestr < -d)
+    + ac*xrestr*(xrestr >= -d && xrestr <= d)
+    + (ar*xrestr+br)*(xrestr > d); 
+
+  fspace1d remesh = R*remeshtilde;
+
+  Mesh1d = movemesh(Mesh1d,[remesh,y]);
+
+  if(displayplot > 5){plot(Mesh1d,wait=1,cmm="1D mesh after refinement");}
+
+  //===============================
+  // Refine 2D mesh
+  //===============================
+  if(displayplot > 5){plot(Mesh2d,wait=1,cmm="Initial 2D mesh");}
+
+  fspace2d remesh2dx = remesh;
+  fspace2d remesh2dy;
+  fspace2d tri = R*delta*y+x;
+
+  int[int] num(0:remesh2dx[].n-1);
+  sort(tri[],num);
+  
+  for(int j = 0; j < remesh2dx[].n; j++){
+    remesh2dy[][j] = remesh2dx[][num[j]];
+  }
+
+  Mesh2d = movemesh(Mesh2d,[remesh2dx,remesh2dy]);
+
+  if(displayplot > 5){plot(Mesh2d,wait=1,cmm="2D mesh after refinement");}
+}
+EndMacro
+
+meshprocessing(Th1d,Vh1d,radius,epsi,d,Th,Vh,delta);

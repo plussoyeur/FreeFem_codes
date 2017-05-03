@@ -1,0 +1,112 @@
+//===============================================================
+// LJLL Jussieu - Paris
+// ENS Paris-Saclay
+// LPT Orsay
+// emeriau.pe@gmail.com
+// avril 2017
+//===============================================================
+
+load "ff-Ipopt";
+
+//===============================================================
+// create mesh 1D and 2D
+//===============================================================
+
+real radius = 20;
+real ax = 1;
+real t = 0;
+real sigma0 = 5.;
+real ampkn = .5*(-1./16.+1./4.);
+real tmax = 160., dt = 1.;
+
+mesh Th1d = square(100,1,[2*radius*x-radius,y]);
+fespace Vh1d(Th1d,P1,periodic=[[1,x],[3,x]]);
+
+
+plot (Th1d,wait=1,cmm="th init");
+
+real epsi = .3;
+real d = .7;
+
+real al = 1./(d-1)*(epsi-1);
+real bl = 1./(d-1)*(epsi-d);
+
+real ar = al;
+real br = -bl;
+
+real ac = epsi/d;
+
+func xbij = x/radius;
+
+Vh1d remeshtilde = (al*xbij+bl)*(xbij < -d)
+  + ac*xbij*(xbij >= -d && xbij <= d)
+  + (ar*xbij+br)*(xbij > d); 
+
+func remesh = radius*remeshtilde;
+Vh1d uh = remesh;
+Vh1d xx = x;
+plot(xx,wait=1,cmm="x before",fill=1,dim=3);
+
+plot(uh,wait=1,fill=1,dim=3,cmm="bij");
+
+Th1d = movemesh(Th1d,[uh,y]);
+plot(Th1d,wait=1,cmm="th after");
+Vh1d xxx = x;
+plot(xxx,wait=1,cmm="x after",fill=1,dim=3);
+
+cout << "nb points : " << uh[].n << endl;
+
+mesh Th = square(100,100,[2*radius*x-radius,2*radius*y-radius]);
+plot(Th,wait=1,cmm="square initial");
+fespace Vh(Th,P1);
+Vh uhh = uh;
+
+Vh tri = y*.0001*radius+x;
+int[int] num(0:uhh[].n-1);
+cout << tri[].n << "  " << num.n << endl;
+sort(tri[],num);
+//cout << num << endl;
+Vh uhh2;
+for(int j = 0; j < uhh[].n; j++){
+  uhh2[][j] = uhh[][num[j]];
+ }
+
+cout << uhh2[] << endl;
+// cout << "Size : " << uhh[].n << endl;
+// real[int,int] uhh2(101,101);
+// for(int i = 0; i < 101; i++){
+//   for(int j = 0; j < 101; j++){
+//     int ind = i+j;
+//     uhh2(i,j) = uhh[][ind];
+//   }
+//  }
+
+plot(uhh,wait=1,cmm="uhh");
+plot(uhh2,wait=1,cmm="uhh2");
+
+
+Th = movemesh(Th,[uhh,uhh2]);
+plot(Th,wait=1,cmm="square after");
+
+
+func real potential(real xx){
+  return -.25*exp(-xx*xx/(sigma0*sigma0));
+}
+
+func real knife(real xx, real tt){
+  return ampkn*tanh(xx+radius-.25*tt);
+}
+func real pottotal(real xx, real tt){
+  return potential(xx) + knife(xx,tt);
+}
+Vh1d poth = pottotal(x,75);
+
+for(int i = 0; i < 160; i++){
+  cout << i << endl;
+  Vh1d pot = pottotal(x,t);
+  Vh1d kni = knife(x,t);
+  
+  //plot(kni,dim=3,fill=1);
+  plot(pot,dim=3,fill=1,wait=1);
+  t += dt;
+ }
