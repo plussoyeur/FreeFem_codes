@@ -1,0 +1,46 @@
+//===============================================================
+// LJLL Jussieu - Paris
+// ENS Paris-Saclay
+// LPT Orsay
+// emeriau.pe@gmail.com
+// avril 2017
+//===============================================================
+
+
+//===============================================================
+// Macro used to produce a function of y on a 2d mesh if given
+//       a function of x on this mesh
+//       (assuming square mesh here...)
+//===============================================================
+
+NewMacro XtoYfunction(Mesh2d,fspace2d,fx,fy){
+  // Compute tri function (we want the total y-lenght on the mesh
+  //       to be smaller than any elements along the x-axis)
+
+  // Total lenght along the y/x-axis
+  fspace2d yy = y;
+  real sizey = abs(yy[].max-yy[].min);
+
+  // Min size of elements along the x-axis
+  fspace2d uh = 1;
+  varf xfsizeofelements(u,v) = int1d(Mesh2d,1)(uh*v);
+  real[int] xsizeofelements = xfsizeofelements(0,fspace2d);
+  xsizeofelements = xsizeofelements ? xsizeofelements : 10^8;
+  real xminsize = .5*xsizeofelements.min;
+
+  // Tri function : total lengh along the y-axis must be smaller than the min of size elements along the x-axis
+  real delta = xminsize/sizey;
+  fspace2d tri = delta*y+x;
+
+  // Sort table (permutation of indexes)
+  int[int] num(0:fx[].n-1);
+  sort(tri[],num);
+
+  // Define the function of y
+  for(int j = 0; j < fx[].n; j++){
+    fy[][j] = fx[][num[j]];
+  }  
+  
+}
+EndMacro
+

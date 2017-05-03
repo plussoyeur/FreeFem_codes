@@ -1,0 +1,3 @@
+Vh1d2 uh;
+uh = 4.*exp(-x^2/sigma0^2);
+

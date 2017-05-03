@@ -46,14 +46,8 @@ NewMacro meshprocessing(Mesh1d,fspace1d,R,epsilon,dd,Mesh2d,fspace2d,delta){
 
   fspace2d remesh2dx = remesh;
   fspace2d remesh2dy;
-  fspace2d tri = R*delta*y+x;
-
-  int[int] num(0:remesh2dx[].n-1);
-  sort(tri[],num);
   
-  for(int j = 0; j < remesh2dx[].n; j++){
-    remesh2dy[][j] = remesh2dx[][num[j]];
-  }
+  XtoYfunction(Mesh2d,fspace2d,remesh2dx,remesh2dy);
 
   Mesh2d = movemesh(Mesh2d,[remesh2dx,remesh2dy]);
 

@@ -1,0 +1,11 @@
+// Vh1d2<complex> uh,uconj;
+// Vh1d2 uhr, uhi, umod;
+// real Normu;
+
+// umod = 4.*exp(-x^2/sigma0^2);
+// uh = 4.*exp(-x^2/sigma0^2);
+
+// BECnormalize(Th,uh,Normu,uhr,uhi,umod,"normalisation initiale ",cout);
+
+Vh1d<complex> uh;
+uh = 4.*exp(-x^2/sigma0^2);

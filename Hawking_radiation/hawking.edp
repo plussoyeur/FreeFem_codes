@@ -7,40 +7,49 @@
 //===============================================================
 
 load "ff-Ipopt";
+load "BEC";
+load "pipe"; //BEC_2D_Macros.idp
 
 int displayplot = 6;
 
 
-//===============================================================
-// Physical parmeters
-//===============================================================
-real radius = 20;
-real ax = 1;
-real t = 0;
-real sigma0 = 5.;
-real ampkn = .5*(-1./16.+1./4.);
-real tmax = 160., dt = 1.;
 
+//===============================================================
+// Mesh parmeters
+//===============================================================
+real radius = 20; // size of mesh
+int Ne = 100; // number of elements
+
+include "HK_xtoy2Dfunction.idp"
 
 //===============================================================
 // create 1D mesh and 2D mesh corresponding
 //===============================================================
 
 // 1D mesh
-mesh Th1d = square(100,1,[2*radius*x-radius,y]);
+mesh Th1d = square(Ne,1,[2*radius*x-radius,y]);
 fespace Vh1d(Th1d,P1,periodic=[[1,x],[3,x]]);
+fespace Vh1d2(Th1d,P2,periodic=[[1,x],[3,x]]);
 
 real epsi = .3;
 real d = .7;
 
 // 2D mesh
-mesh Th = square(100,100,[2*radius*x-radius,2*radius*y-radius]);
+mesh Th = square(Ne,Ne,[2*radius*x-radius,2*radius*y-radius]);
 fespace Vh(Th,P1);
+fespace Vh2(Th,P2);
 
-real delta = 0.0001;
+// Macro for BEC
+include "BEC_2D_Macros.idp";
 
-// Macro used to refine the 1D mesh and produce the 2D mesh associated
+// Macro used to refine the 1D mesh and produce the refined 2D mesh associated
 include "HK_meshprocessing.idp"
 
+// Define the potential as func real potential(real xx, real t)
+include "HK_potential.idp"
 
+// Initialisation of the wavefunction
+include "HK_wvinitialisation.idp"
 
+// Relax scheme
+include "HK_Relaxscheme.idp"

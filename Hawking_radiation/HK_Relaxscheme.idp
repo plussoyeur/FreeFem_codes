@@ -1,0 +1,62 @@
+//===============================================================
+// Time parmeters
+//===============================================================
+real t = 0;
+real tmax = 160., dt = 1.;
+real Cg = 1./16;
+
+  
+Vh1d Ctrap = potential(x,t);
+Vh1d<complex> u,v;
+Vh1d rho;
+
+complex idt = dt*1i;
+
+varf  Vsystdeb(u,v)= int1d(Th1d,1)(2*u*v+idt*0.5*(dx(u)*dx(v)+dy(u)*dy(v)))+ on(2,4,u=0);
+
+varf  Vmass(u,v)= int1d(Th1d,1)(u*v);
+
+
+matrix<complex> Asystdeb =  Vsystdeb(Vh1d,Vh1d);
+matrix<complex> Amass =  Vmass(Vh1d,Vh1d);
+
+
+varf vCl(u,v) = on(2,4,u=1); // for boundary conditions
+   
+// array with 1 on interior nodes and 0 on boundary nodes
+Vh1d<complex>  Cl;
+Cl[] = vCl(0,Vh1d,tgv=1);
+Cl[] = -Cl[]; Cl[] += 1;
+
+Vh1d<complex> phi = Cg*un2(uh);
+
+Vh1d<complex> Hnew, Hnewm;
+
+for(int i = 0; i < 160; i++){
+
+  t += dt;
+
+  Ctrap = potential(x,t-.5*dt);
+
+  // Build phi
+  phi = 2.*Cg*un2(uh)-phi;
+
+  // Build matrices
+  varf  Vsystfin(u,v)= int1d(Th1d,1)(idt*phi*u*v+idt*Ctrap*u*v);
+
+  matrix<complex> Asystfin =   Vsystfin(Vh1d,Vh1d);
+  matrix<complex> Asyst = Asystdeb + Asystfin;
+  set(Asyst,solver=UMFPACK);
+
+  Hnew = 2*uh;
+  complex[int] brhs = Amass*Hnew[];
+  brhs .*=Cl[];
+  
+  Vh1d<complex> umoy; umoy[] = Asyst^-1*brhs;
+  uh = 2*umoy - uh;
+
+  rho = sqrt(un2(uh));
+  plot(Ctrap,wait=1,fill=1,dim=3);
+  plot(rho,wait=1,fill=1,dim=3);
+  
+ }

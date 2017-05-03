@@ -1,0 +1,636 @@
+//===============================================================
+// Functions to read a file
+//===============================================================
+ 
+ real okread;
+ func real readparam(string dataname, string paraname, string & para){
+      string line = "";
+      ifstream params(dataname);
+      while(line!=paraname){ params >> line;
+      if (params.eof) {cout  << paraname << " missing in " << dataname << endl; return 1.;}}
+      params >> para;
+      return 0.;
+ }
+ func real readparam(string dataname, string paraname, real & para){
+      string line = "";
+      ifstream params(dataname);
+      while(line!=paraname){ params >> line;
+      if (params.eof) {cout  << paraname << " missing in " << dataname << endl; return 1.;}}
+      params >> para;
+      return 0.;
+ }
+ func real readparam(string dataname, string paraname, int & para){
+      string line = "";
+      ifstream params(dataname);
+      while(line!=paraname){ params >> line;
+      if (params.eof) {cout  << paraname << " missing in " << dataname << endl; return 1.;}}
+      params >> para;
+      return 0.;
+ }
+ func real readparam(string dataname, string paraname, bool & para){
+      string line = "";
+      ifstream params(dataname);
+      while(line!=paraname){ params >> line;
+      if (params.eof) {cout  << paraname << " missing in " << dataname << endl; return 1.;}}
+      params >> para;
+      return 0.;
+ }
+ func bool checkArgKW()
+ {
+ 	bool frun=false,fparam=false;
+ 	for(int i=ARGV.n-1;i>=0;--i)
+ 	{
+ 	if(ARGV[i]=="-run") frun=true;
+ 	if(ARGV[i]=="-param") fparam=true;
+ 	if(frun && fparam) break;
+ 	}
+ 	return (ARGV.n == 2) || (ARGV.n==4 && (frun || fparam)) || (ARGV.n==6 && frun && fparam);
+ }
+ func int usedARGV(string after)
+{
+  int ret=-1;
+  for(int i=ARGV.n-1;i>=0;--i) if(ARGV[i]==after) { ret=++i; break;}
+  if(ARGV.n<ret) ret=-1;
+  return ret;
+}
+func string getARGV(string after,string default)
+{
+   string d=default;
+   int k=usedARGV(after);
+   if(k>0) d=ARGV[k];
+   return d;
+}
+
+//===============================================================
+//function to read/write files transforms an int in char
+//===============================================================
+
+func string funciter(int iter)
+{ string rs = iter;
+ if(iter <10)
+      return "0000"+rs;
+ else if(iter <100)
+      return "000"+rs;
+ else if(iter <1000)
+      return "00"+rs;
+ else if(iter <10000)
+      return "0"+rs;
+ else
+      return rs;
+}
+
+//===============================================================
+//Macro to create a directory with name dircase
+//===============================================================
+
+macro createDIR(dircase)
+/*(Linux only valid for old versions too)*/
+/*    exec("if  test -d  "+dircase+"  ; then  echo \"-----> directory already exists\" ;"
+       +"else   echo \"---> create directory\" ; mkdir "+dircase+ " ; fi");
+*/
+ 
+/*(all systems) new versions of FreeFem*/
+        load "shell";
+        cout<<"======================================================="<<endl;
+        {        
+  if(isdir(dircase) < 0)
+  {  int ok=mkdir(dircase);
+    cout<<isdir(dircase)<<" ======== Directory "<<dircase<<"  was created !!  " << ok<< endl;
+          }
+  else if(isdir(dircase) > 0)
+           cout<<"======== Directory "<<dircase<<"  already exists !!"<<endl;
+          else
+           cout<<"======== !!!!! "<<dircase<<"  is a file !! directory not created "<<endl;
+
+        cout<<"======================================================="<<endl;
+}
+// EOM 
+
+//===============================================================
+// save data file for Tecplot 
+// contains the mesh Th
+// and the values of 4 variables v1,v2,v3,v4
+//===============================================================
+
+macro  savetecplot4scale(Th,Vh,namef,v1in,v2in,v3in,v4in,cv1,cv2,cv3,cv4,zname,scalex,scalev)
+{
+{    fespace Vh1loc(Th,P1);
+      Vh1loc  Thx=x, Thy=y;
+      Vh1loc v1 = v1in;
+      Vh1loc v2 = v2in;
+      Vh1loc v3 = v3in;
+      Vh1loc v4 = v4in;
+
+   ofstream ftec(namef);
+      ftec<<"VARIABLES= x y "<<cv1<<" "<<cv2<<" "<<cv3<<" "<<cv4<<endl;
+      ftec<<"ZONE T=\""<<zname<<"\", F=FEPOINT, N="<<Th.nv<<", E="<<Th.nt<<", ET=TRIANGLE"<<endl;
+      for(int i=0;i<Th.nv;i++)
+        ftec<< Thx[][i]*scalex << "   "<< Thy[][i]*scalex
+            <<"   " <<v1[][i]*scalev
+            <<"   " <<v2[][i]*scalev
+            <<"   " <<v3[][i]*scalev
+            <<"   " <<v4[][i]*scalev
+            <<endl;
+
+      ftec<<endl;
+      /* connectivites */
+      for(int i=0;i<Th.nt;i++)
+        ftec<< Th[i][0]+1 << "   "<< Th[i][1]+1<<"   " <<Th[i][2]+1<<endl;
+
+cout<<" +++++++++ savetec4varscale  :: fichier "<<namef<<endl;
+}
+}// EOM
+
+//===============================================================
+// extracts values on a given line P1P2
+// writes a data file for Tecplot
+// scales the geometry (scalex) and the values (scalev)
+//===============================================================
+
+macro extractDlignescale(Th,Vh,avar,xP1,yP1,xP2,yP2,Npt,namef,namev,zname,scalex,scalev)
+{
+   real [int] vloc(Npt);
+   real [int] xloc(Npt);
+   real [int] sloc(Npt);
+   real [int] yloc(Npt);
+   
+   for(int i=0;i<Npt;i++)
+   { 
+      xloc[i] = xP1+(xP2-xP1)*i/(Npt-1);
+      yloc[i] = yP1+(yP2-yP1)*i/(Npt-1);
+      sloc[i] = sqrt(xloc[i]*xloc[i]+yloc[i]*yloc[i]);
+      vloc[i] = avar(xloc[i],yloc[i]);       
+   }
+
+/* on ecrit tout dans un fichier tecplot*/
+{
+   ofstream   ftec(namef);
+    ftec<<"VARIABLES= x y s "<<namev<<endl;
+      ftec<<"ZONE T=\""<<zname<<"\", F=POINT, I="<<Npt<<endl;
+   for(int i=0;i<Npt;i++)
+   { 
+     ftec << xloc[i]*scalex<<"   "<<yloc[i]*scalex<<"   "<<sloc[i]*scalex<<"   "<< vloc[i]*scalev<<endl;
+   }
+   cout<<" +++++++++ extractDligne  :: fichier "<<namef<<endl;
+}
+} // EOM
+
+//===============================================================
+// load solution for restart only
+//===============================================================
+
+macro  restartload(u,namef,niter)
+{
+{
+      ifstream ftec(namef);
+      ftec>> niter;
+      ftec>> u[];
+
+
+cout<<" +++++++++ load_restart_file  :: fichier "<<namef<<endl;
+}
+}// EOM
+
+
+
+//===============================================================
+// read solution from restart with an old mesh
+//===============================================================
+
+macro  restartloadint(unew,namef,namemesh,niter)
+{
+{
+      mesh Thint(namemesh+".msh");
+      fespace Vhint(Thint,P1);
+      Vhint<complex> uint;
+       
+      {ifstream ftec(namef+".rst");
+      ftec>> niter;
+      ftec>> uint[];}
+      
+      unew = uint;
+      
+cout<<" +++++++++ read_restart_file  :: fichier mesh"<<namemesh+".msh"<<endl;
+cout<<" +++++++++ read_restart_file  :: fichier  sol"<<namef+".rst"<<endl;
+}
+}// EOM
+
+//===============================================================
+// save solution for restart 
+//===============================================================
+
+macro restartsave(u,namef,niter)
+{
+{   
+      ofstream ftec(namef);
+      ftec<<niter<<endl;
+      ftec<< u[];
+
+cout<<" +++++++++ save_restart_file  :: fichier "<<namef<<endl;
+}
+}//EOM
+
+//===============================================================
+// define a pstream variable to plot the energy with gnuplot during the run 
+//===============================================================
+       string sgnuplot ="gnuplot -persist";
+       if (onWIN32)
+       { // windows command ... 
+         sgnuplot= "\"C:\\Program Files (x86)\\gnuplot\\bin\\pgnuplot.exe\" -persist";
+       }
+
+       cout << "pipe on " << sgnuplot << endl; 
+       pstream  fgnuplot(sgnuplot,"w");
+
+//===============================================================
+// BEC 2D
+// main macros defining the problem 
+//===============================================================
+
+// macro for u2
+
+macro un2(u) (real(u*conj(u)))//
+
+// macro for \int |u|^2= 
+
+macro intu2(Th,u) (int2d(Th)(un2(u)))//
+
+// macro for  the L2 scalar product
+
+macro scal2uv(Th,u,v) (2*int2d(Th)(real(u*conj(v))))//
+
+// macro for vector potential operator (AG)
+
+macro   lzd(u) (y*dx(u)-x*dy(u))//
+
+//macro to compute gradu*gradv
+macro graduv(u,v) (dx(u)*dx(v)+dy(u)*dy(v))//
+
+// macro for the angular momentum -- integral
+
+macro   Lzi(Th,u,uconj) (-int2d(Th)(imag(uconj*lzd(u))))//
+   
+
+// macro for the energy 
+
+macro energ(Th,u,uconj)        ( int2d(Th)(0.5*real(dx(u)*dx(uconj)+dy(u)*dy(uconj)))
+                               +int2d(Th)(Ctrap*un2(u))
+                               +int2d(Th)(0.5*Cg*un2(u)*un2(u))
+			       -Comega*Lzi(Th,u,uconj))//
+
+// macro for smooting the solution
+
+macro fsmooth(rr,Rsmooth) (0.5*(1+tanh(25*(1-rr/Rsmooth))))//    
+
+//===============================================================
+// normalize the complex solution
+// tout = message to print
+// fout = file to print
+//===============================================================
+
+macro  BECnormalize(Th,un,Normu,ur,ui,umod,tout,fout)
+{
+   Normu = int2d(Th)(real(un*conj(un)));
+   cout << "=========== "<< tout << " :: Norm before normalization (1) =" << Normu <<endl;
+   fout << "=========== "<< tout << " :: Norm before normalization (1) =" << Normu <<endl;
+   
+   un    = un/sqrt(Normu);
+
+   Normu = int2d(Th)(real(un*conj(un)));
+   cout << "=========== "<< tout << " :: Norm after  normalization (2) =" << Normu <<endl;
+   fout << "=========== "<< tout << " :: Norm after  normalization (2) =" << Normu <<endl;
+
+   uconj = conj(un);
+   ur    = real(un);
+   ui    = imag(un);
+   umod  = sqrt(real(un*uconj));
+
+}// EOM
+
+//===============================================================
+// Macro to create a new mesh 
+// with the same mesh density 
+// but with axisymmetric structure
+//===============================================================
+
+macro  meshaxisym(Th,Vh,ur,ui,hminloc)
+{
+    
+   Vh m11,m12,m22,hh,hhh;
+
+   adaptmesh(Th,ur,ui,err=0.001,errg=0.001,metric=[m11[],m12[],m22[]],iso=1,nomeshgeneration=1,hmin=hminloc);
+
+   hh=m11;
+  
+   {
+    int nn= 10;
+    for(int i=0; i < nn;++i)
+     {
+        real theta = (2*pi*i)/nn;
+        real axx=cos(theta), axy= sin(theta) ;
+        real ayx=-axy, ayy = axx;
+        
+        func XX = x*axx+y*axy;
+        func YY = x*ayx+y*ayy;  
+        hhh    = hh(XX,YY);
+        plot(hhh,wait=0, cmm="hhh--"+i);   
+        hh = max(hh,hh(XX,YY));
+     } 
+
+    hh=(1./sqrt(hh)>hminloc)?1./sqrt(hh):hminloc;
+    
+ 
+   }
+  Th=adaptmesh(Th, hh, IsMetric=1,nbvx=1000000,keepbackvertices=1,ratio=1.3);
+
+  plot(Th,wait=1,cmm="New mesh AXISYMMETRIC");
+
+}// EOM
+
+//===============================================================
+// adapts the mesh for BEC simulations
+//  + eventually make the  mesh axisymmetric
+// interpolates the main variables on the new mesh
+//===============================================================
+
+macro  meshBECadapt(Th,Vh,un,ifad,hminad,ifax,hminax,IWAIT,errad)
+{
+   if(ifad)
+   { 
+      cout<<"######### MAKE ADAPT MESH "<<endl;  
+      fout<<"######### MAKE ADAPT MESH "<<endl; 
+      
+        Th = adaptmesh(Th, [real(un),imag(un)],hmin=hminad,err=errad,ratio=1.3,anisomax=2,nbvx=10^6);
+
+	if (withplot) plot(Th,wait=IWAIT,cmm="NEW mesh of the domain :: after adapt");
+   }
+
+   if(ifax)
+   {
+      cout<<"######### MAKE MESH AXISYMMETRIC"<<endl;  
+      fout<<"######### MAKE MESH AXISYMMETRIC"<<endl;  
+       
+       real hmin=0.1;
+       meshaxisym(Th,Vh,real(un),imag(un),hminax);
+
+         if (withplot) plot(Th,wait=IWAIT,cmm="NEW mesh of the domain :: after axisym");
+
+   }   
+   
+   un = un;  /* interpolates the solution on the new mesh */
+
+}// EOM
+
+//===============================================================
+// NEWTON method to compute roots
+// improved 6th order method (see Grau et all)
+//===============================================================
+
+macro  IONEWTON(funcin,dfuncin,x1,x2,acc,xsol)
+{
+      int MAXIT =100;
+      int ifcont=1;
+      real df,dx,dxold,f,fh,fl,temp,xh,xl,yn,zn,mun,dum6th;
+      
+      
+      fl = funcin(x1);
+      fh = funcin(x2);
+     
+      if((fl>0. && fh > 0.)||(fl<0. && fh < 0.))
+         {cout<<" ***** Stop No sign change for  x=x1 and x=x2"<<endl; exit(1);} 
+      if(fl == 0.)
+        {xsol=x1;ifcont=0;}
+      else 
+        {if(fh == 0.)
+          {xsol=x2;ifcont=0;}
+         else 
+          { if(fl< 0.)
+             {xl=x1;xh=x2;}
+            else
+             {xh=x1;xl=x2;}
+          }
+         }
+      
+  if(ifcont)    
+{      
+      xsol=0.5*(x1+x2);
+      dxold=abs(x2-x1);
+      dx=dxold;
+      
+      f = funcin(xsol);
+      df=dfuncin(xsol);
+      
+      int j=1;
+      for(j=1;j<MAXIT;j++)
+      {
+       cout<<"Newton iteration == "<<j << "   xsol="<<xsol<<endl;
+        if( ((xsol-xh)*df-f)*((xsol-xl)*df-f)>0.
+            || abs(2.*f)> abs(dxold*df) 
+           )
+          { dxold=dx;
+            dx=0.5*(xh-xl);
+            xsol=xl+dx;
+            if(xl == xsol)break;
+          }
+        else
+          { dxold=dx; 
+            dx=f/df;
+            temp=xsol;
+     
+            dum6th = funcin(temp)-2.*funcin(yn);
+            if(abs(dum6th) > 0)
+            {
+            yn   = xsol -dx; 
+            mun  = (temp-yn)/dum6th;
+            zn   = yn - mun*funcin(yn);
+            xsol = zn - mun*funcin(zn);
+            }
+            else
+            {
+             xsol=xsol-dx;          
+            }       
+            if(temp == xsol) break;
+            
+          }
+        
+        if(abs(dx)< acc) break;
+        
+        f = funcin(xsol);
+        df=dfuncin(xsol);
+        
+        if(f < 0.)
+          xl=xsol;
+        else
+          xh=xsol;
+      }
+
+      if(j == MAXIT)
+      {cout<<"IONEWTON  exceeding maximum iterations="<<MAXIT<<endl;exit(1);}
+}
+}//EOM
+
+//===============================================================
+// macro computing rho0
+// for the Thomas-Fermi approximation
+// harmonic potential
+//===============================================================
+
+
+macro  computerhoHP(rho0,Rx,Ry,ax,ay,eps,Cg,Omop)
+{
+  /* takes into account the effective potential*/
+     real axo = ax-Omop*Omop; 
+     real ayo = ay-Omop*Omop; 
+           
+  /* parameters*/
+      real vscale = eps*eps*2.*Cg;
+      real  axy   = sqrt(axo*ayo);
+      
+  /* results */
+  
+       rho0=sqrt(2./pi*axy*vscale);
+       Rx=sqrt(rho0/axo);
+       Ry=sqrt(rho0/ayo);
+}// EOM
+
+//===============================================================
+// macro computing rho0
+// for the Thomas-Fermi approximation
+// quartic +/- quadratic potential
+//===============================================================
+
+
+macro  feta(eta) ( 4*a4*pow(eta,3)+3*a2o*pow(eta,2)-6./pi*vscale)// EOM
+macro dfeta(eta) (12*a4*pow(eta,2)+6*a2o*eta) //EOM
+
+macro  computerhoQP2(rho0,Rout,Rin,a2,a4,eps,Cg,Omop)
+{
+  /* takes into account the effective potential*/
+     real a2o = a2-Omop*Omop; 
+      
+  /* parameters*/
+      real vscale = eps*eps*2.*Cg;
+      real  Aeta  = 6./pi*vscale;
+      real   xi   = pow(abs(a2o),1.5)/sqrt(Aeta);
+  /* different cases */
+  if(  (a2o<0) && (a4<xi)) 
+      {
+       cout<<"TF computing rho0:: quartic-quadratic potential with hole"<<endl; 
+       rho0   = (pow(Aeta*a4*a4,(2./3.))-a2o*a2o)/(4.*a4);
+       Rin   = sqrt((-a2o-sqrt(a2o*a2o+4.*rho0*a4))/(2.*a4));
+      } 
+  else 
+      {
+       if(a2o >= 0)
+        cout<<"TF coputing rho0:: quartic-quadratic potential with depletion"<<endl; 
+       else
+        cout<<"TF coputing rho0:: quartic + quadratic"<<endl;
+ 
+        real reta ;
+        IONEWTON(feta,dfeta,0., 200.,1.e-6,reta);  
+        rho0 = a2o*reta+a4*reta*reta;
+        Rin=0;
+       }
+       
+       
+ Rout   = sqrt((-a2o+sqrt(a2o*a2o+4.*rho0*a4))/(2.*a4)); 
+ if(Rin == 0) Rin = 0.4*Rout;
+}// EOM
+
+//===============================================================
+// ansatz for a single 2D vortex to be multiplied with the
+// Thomas-Fermi density profile
+//===============================================================
+
+
+macro  addvortex(Th, Vh, xvor, yvor, epsvor,uvortex)
+{
+  /*  unitary unit li, Vh  are defined before*/
+     Vh rr =sqrt(x*x+y*y);
+
+  /* ansatz*/
+      
+      Vh qrad=sqrt((x-xvor)*(x-xvor)+(y-yvor)*(y-yvor));
+      Vh qder=0.5*(1.+tanh((qrad-epsvor)*4./epsvor)) ;
+
+      uvortex = (qrad>0)? sqrt(qder)*(x-xvor + li*(y-yvor))/qrad : 0. ;
+
+}// EOM
+
+macro  addARvortex(Th, Vh, un, Rmax,epsvor, narray, Nv, Rarr, Tharr, dRarr, dTharr)
+{
+  Vh<complex> uvortex;
+  real xvor, yvor;
+
+  if(narray==1 && Nv==1)
+    {/* add a single vortex */
+      xvor = Rarr*cos(Tharr);
+      yvor = Rarr*sin(Tharr) ; 
+
+      cout <<"======vortex   xvor = "<< xvor <<"  yvor ="<< yvor <<endl;
+      fout <<"======vortex   xvor = "<< xvor <<"  yvor ="<< yvor <<endl;
+     
+   /*addvortex(Th, Vh, xvor, yvor, epsvor, uvortex);*/
+   un = un *GPvortex(xvor,yvor,1./epsvor);                   
+    }
+  else
+    {/* add successive circles of vortices */
+
+      real Rcv, Tcv, thetav;
+      for(int iarray=0; iarray < narray; iarray++)  
+	{ Rcv = Rarr  + iarray*dRarr;  /* increment position radius*/
+          Tcv = Tharr + iarray*dTharr;   /* increment position theta */
+
+          if(Rcv > Rmax) break;
+
+	  Nv = Nv+iarray*(Nv+2); /* trick to put more vortices on the next circle*/        
+          cout<<"====== Nv ="<<Nv<<endl;
+          
+         for(int iv=0;iv < Nv;iv++)
+         { 
+           thetav = Tcv + (2*pi/Nv)*iv ;
+
+           xvor = Rcv*cos(thetav); 
+           yvor = Rcv*sin(thetav);
+           cout <<"=== Varray="<<iarray<<"  vortex "<<iv+1<<"   xvor = "<< xvor <<"  yvor ="<< yvor <<endl;
+           fout <<"=== Varray="<<iarray<<"  vortex "<<iv+1<<"   xvor = "<< xvor <<"  yvor ="<< yvor <<endl;
+     
+           /*addvortex(Th, Vh, xvor, yvor, epsvor, uvortex);*/
+           un = un *GPvortex(xvor,yvor,1./epsvor);
+          }
+       }
+    }
+}// EOM
+
+//function to get the minium of a 4 order polynomial
+func real minpoly(real aa, real bb, real cc, real dd){
+
+	real a = aa, b=bb,c=cc,d=dd;
+
+	func real IVe(real[int] &X){
+		return a*X[0]*X[0]*X[0]*X[0] + b*X[0]*X[0]*X[0] + c*X[0]*X[0] + d*X[0];
+	}
+
+	func real[int] dVe(real[int] &X){
+		real[int] df(X.n);
+		df[0] = 4.*a*X[0]*X[0]*X[0] + 3.*b*X[0]*X[0] + 2.*c*X[0] + d;
+		return df;
+	}
+
+	matrix Hessian;
+	func matrix hVe(real[int] &X){
+
+		real[int,int] A(X.n,X.n);
+		A(0,0) = 12.*a*X[0]*X[0] + 6.*b*X[0] + 2.*c;
+		Hessian = A;
+		return Hessian;
+	}
+
+
+	real[int] x0 = [1.];
+	real ok;
+        verbosity = -1000;
+
+	ok=IPOPT(IVe,dVe,hVe,x0,tol=1e-12,maxiter=100);
+	return x0[0];
+}

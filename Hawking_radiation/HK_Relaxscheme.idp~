@@ -1,0 +1,19 @@
+//===============================================================
+// Time parmeters
+//===============================================================
+real t = 0;
+real tmax = 160., dt = 1.;
+
+Vh1d Ctrap = potential(x,t);
+Vh1d<complex> u,v;
+
+complex idt = dt*1i;
+
+varf  Vsystdeb(u,v)= int1d(Th1d,1)(2*Ct*u*v+idt*0.5*(dx(u)*dx(v)+dy(u)*dy(v)))
+  + on(1,2,3,4,u=1);
+
+varf  Vmass(u,v)= int1d(Th1d,1)(u*v);
+
+
+matrix<complex> Asystdeb =  Vsystdeb(Vh1d,Vh1d);
+matrix<complex> Amass =  Vmass(Vh1d,Vh1d);

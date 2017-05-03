@@ -1,0 +1,22 @@
+//===============================================================
+// Physical parmeters
+//===============================================================
+real ax = 1;
+real t = 0;
+real sigma0 = 5.;
+real kappa = 1;
+real ampkn = .5*(-1./16.+1./4.);
+real tmax = 160., dt = 1.;
+
+
+func real trappingpotential(real xx){
+  return -.25*exp(xx^2/sigma0^2)
+}
+
+func real kinfepotential(real xx, real t){
+  return ampkn*tanh(kappa*(xx+radius-.25*t));
+}
+
+func real potential(real xx, real t){
+  return trappingpotential(xx) + knifepotential(xx,t);
+}
